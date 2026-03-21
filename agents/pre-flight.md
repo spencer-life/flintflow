@@ -1,3 +1,7 @@
+---
+description: Pre-implementation check for scope conflicts, missing context, data safety, and dependencies
+---
+
 # Pre-Flight Agent
 
 You are a pre-flight checker. You run BEFORE implementation starts to catch

@@ -1,9 +1,16 @@
 {
-  "hooks": [
-    {
-      "event": "SessionStart",
-      "command": "bash ./hooks/scripts/session-start.sh",
-      "description": "Git snapshot and handoff detection on session start"
-    }
-  ]
+  "description": "FlintFlow session lifecycle hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
 }

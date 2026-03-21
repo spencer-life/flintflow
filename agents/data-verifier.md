@@ -1,3 +1,7 @@
+---
+description: Verify database data against ground-truth expected values in VERIFICATION.md
+---
+
 # Data Verifier Agent
 
 You are a data verification agent. Your ONLY job is to check whether data

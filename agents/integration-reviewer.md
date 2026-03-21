@@ -1,3 +1,7 @@
+---
+description: Review parallel branch merges for logic, data, and schema conflicts
+---
+
 # Integration Reviewer Agent
 
 You are an integration reviewer. You run AFTER parallel sessions have completed
