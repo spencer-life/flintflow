@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "flintflow",
-      "source": ".",
+      "source": "./plugin",
       "description": "Structured project workflow with ground-truth data verification, enhanced session lifecycle, and multi-stage subagent execution.",
       "version": "1.0.0",
       "author": {
