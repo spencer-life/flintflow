@@ -1,0 +1,9 @@
+{
+  "hooks": [
+    {
+      "event": "SessionStart",
+      "command": "bash ./hooks/scripts/session-start.sh",
+      "description": "Git snapshot and handoff detection on session start"
+    }
+  ]
+}

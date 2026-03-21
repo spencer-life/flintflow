@@ -1,0 +1,148 @@
+---
+name: wrap-up
+description: Use when user says "wrap up", "close session", "end session",
+  "wrap things up", "close out this task", or invokes /wrap-up — runs
+  end-of-session checklist for data verification, commits, project state,
+  and self-improvement. NEVER pushes to remote. NEVER deploys.
+---
+
+# Session Wrap-Up
+
+Run five phases in order. Each phase is conversational and inline.
+All phases auto-apply without asking; present a consolidated report at the end.
+
+**HARD RULES:**
+- **NEVER run `git push`.** Spencer pushes manually. Pushing triggers auto-deploy on Railway.
+- **NEVER run any deploy command.** No deploy scripts, no Railway CLI, nothing.
+- **Commits only.** Stage and commit. That's it.
+
+---
+
+## Phase 1: Verify Data
+
+**If this project has a database component** (check for PROJECT_STATE.md,
+VERIFICATION.md, or database config files):
+
+1. Run `/data-verify` — full verification suite
+2. Record results: X/Y tests passing, list any failures
+3. If tests are failing that were passing earlier in the session, flag prominently:
+   > ⚠️ Data regression detected: {test} was passing, now failing.
+   > This session may have introduced a data error.
+
+**If no database component:** Skip this phase.
+
+---
+
+## Phase 2: Commit (NEVER PUSH)
+
+4. Run `git status` in each repo directory touched during the session
+5. If uncommitted changes exist, stage relevant files and commit with a descriptive message
+6. **DO NOT PUSH. DO NOT OFFER TO PUSH. DO NOT SUGGEST PUSHING.**
+7. If there are changes in multiple repos, commit each separately
+
+**Task cleanup:**
+8. Check the task list for in-progress or stale items
+9. Mark completed tasks as done, flag orphaned ones
+
+---
+
+## Phase 3: Update Project State
+
+**If PROJECT_STATE.md exists:**
+
+10. Update the following sections:
+    - **Current Status** — reflect what's working/broken now
+    - **Data Accuracy Status** — update from Phase 1 results (if applicable)
+    - **Active Work Streams** — mark completed items, update in-progress ones
+    - **Session Log** — add entry: `- {date} #{N}: {what was done}. {what's next}.`
+
+11. If any architecture decisions were made this session, add them to
+    Architecture Decisions with date and reasoning.
+
+12. Commit the PROJECT_STATE.md update (separate commit).
+    **DO NOT PUSH.**
+
+**If PROJECT_STATE.md doesn't exist:** Mention:
+> No PROJECT_STATE.md found. Consider running `/project-init` to set up
+> structured project tracking.
+
+---
+
+## Phase 4: Remember It
+
+Review what was learned during the session. Decide where each piece of
+knowledge belongs:
+
+**Memory placement guide:**
+- **claude-mem MCP** (`save_memory`) — Cross-session insights: debugging
+  patterns, API quirks, project behaviors needed in future sessions.
+- **CLAUDE.md** — Permanent rules, conventions, workflow changes
+- **`.claude/rules/`** — Topic-specific instructions scoped to file types
+  (use `paths:` frontmatter)
+- **`docs/MEMORY-BANK.md`** — Completed milestones, project context. Under 500 lines.
+- **`docs/DECISION_LOG.md`** — Major decisions with reasoning.
+- **`CLAUDE.local.md`** — Private per-project notes, sandbox credentials, WIP context
+- **`VERIFICATION.md`** — Newly confirmed ground-truth values (ONLY values the
+  user verified against source documents, never AI-generated)
+
+**Auto-apply all actionable findings. Commit changes. DO NOT PUSH.**
+
+---
+
+## Phase 5: Review & Improve
+
+Analyze the conversation for self-improvement findings. If the session was
+short or routine, say "Nothing to improve" and finish.
+
+**Finding categories:**
+- **Skill gap** — Things Claude struggled with or needed multiple attempts
+- **Friction** — Repeated manual steps that should be automatic
+- **Knowledge** — Facts Claude should have known
+- **Automation** — Patterns that could become skills, hooks, or scripts
+- **Data accuracy** — User-confirmed ground-truth values
+
+**Action types:**
+- **CLAUDE.md** — Edit rules
+- **Rules** — Create/update `.claude/rules/`
+- **claude-mem** — Save cross-session insight
+- **Skill / Hook** — Document spec for future implementation
+- **VERIFICATION.md** — Add user-confirmed values only
+
+Present summary:
+
+```
+Findings (applied):
+1. ✅ Skill gap: Cost estimates wrong → [CLAUDE.md] Added reference table
+2. ✅ Knowledge: API retries on 429 → [Rules] Added error-handling rule
+3. ✅ Data: User confirmed ANICO age 55 = $32.50 → [VERIFICATION.md] Test #6
+
+No action needed:
+4. Already documented in CLAUDE.md
+```
+
+Commit any changes. **DO NOT PUSH.**
+
+---
+
+## Final Report
+
+```
+## Session Wrap-Up Complete
+
+### Data Verification
+{X/Y passing, or "N/A — no database"}
+
+### Commits (NOT PUSHED)
+- {hash}: {message}
+- {hash}: {message}
+Push when you're ready.
+
+### Project State
+{Updated / Not found — run /project-init}
+
+### Memory Updates
+{List what was saved and where}
+
+### Improvements
+{List or "Nothing to improve"}
+```
