@@ -37,29 +37,46 @@ For each task:
 
 2. IMPLEMENT
    → implementer subagent with full task text + context
-   → Answers questions if needed, implements with TDD, commits
+   → TDD enforced: write test → watch it fail → implement → pass
+   → Mocks ONLY for truly external services (APIs you can't call locally)
+   → Commits when done
 
-3. SPEC REVIEW
+3. UNIT TEST GATE
+   → Run the FULL test suite (not just the new tests)
+   → ALL tests must pass before proceeding
+   → If any fail: return to implementer with failures, fix, re-run
+   → Repeat until green. This gate is non-negotiable.
+
+4. SPEC REVIEW
    → spec reviewer confirms implementation matches spec exactly
    → Fix issues → re-review → must pass
 
-4. CODE QUALITY REVIEW
-   → code quality reviewer checks bugs, security, maintainability
+5. CODE QUALITY REVIEW
+   → code quality reviewer checks bugs, security, maintainability, testing quality
+   → Flags mock-only tests that could test real code
    → Fix issues → re-review → must pass
 
-5. DATA VERIFICATION (if task modified database)
+6. DATA VERIFICATION (if task modified database)
    → data-verifier agent runs VERIFICATION.md ground-truth checks
    → Fix failures → re-verify → must pass
 
-6. CODEX CROSS-MODEL REVIEW (automatic)
+7. SMOKE TEST GATE
+   → If smoke_test.sh exists in project root: run it
+   → ALL real-connection checks must pass
+   → If fail: return to implementer to fix real integration issues
+   → If no smoke_test.sh: warn "No smoke test defined" but don't block
+
+8. CODEX CROSS-MODEL REVIEW (automatic)
    → Auto-invoke /codex compare with task + diff + verification results
    → Report Codex's findings alongside Claude's assessment
    → Synthesize — flag disagreements for user attention
 
-7. Mark task complete
+9. Mark task complete
 ```
 
-After all tasks: dispatch integration-reviewer agent for full review.
+After all tasks:
+1. Dispatch integration-reviewer agent for full review
+2. Run `/status` for confidence dashboard — if score < 70, flag for user
 
 ---
 
@@ -117,17 +134,23 @@ CONTEXT:
 
 INSTRUCTIONS:
 1. Questions? ASK BEFORE implementing. Don't guess.
-2. TDD: write test → fail → implement → pass
-3. Minimal code — nothing beyond the task spec
-4. Self-review before reporting done:
+2. TDD is REQUIRED — follow this exact cycle:
+   a. Write the test FIRST
+   b. Run it — watch it FAIL (if it passes, your test is wrong)
+   c. Write the minimal code to make it PASS
+   d. Refactor if needed, re-run to confirm still green
+3. Mocks ONLY for truly external services (APIs, third-party DBs you can't
+   call locally). If you can test it without a mock, you MUST test without a mock.
+4. Minimal code — nothing beyond the task spec
+5. Self-review before reporting done:
    - Everything asked for? Anything extra? (Remove extras)
-   - All tests pass?
+   - Run the FULL test suite (not just new tests) — all pass?
    - For DB changes: show before/after SELECT output
-5. Commit with descriptive message. DO NOT PUSH.
+6. Commit with descriptive message. DO NOT PUSH.
 
 REPORT:
 - What you implemented
-- Tests: {count} passing
+- Tests: {total count} passing, {new count} added
 - Self-review findings
 - For DB changes: row counts and sample data
 ```
@@ -173,6 +196,12 @@ Check:
 3. MAINTAINABILITY: Naming, duplication, complexity, magic numbers
 4. TESTING: Tests meaningful? Testing behavior, not implementation?
 5. ERROR HANDLING: Errors caught and handled?
+6. TESTING QUALITY:
+   - Flag mock-only tests that could test real code instead
+   - Flag tests that only verify mock call counts (not real outcomes)
+   - Flag tests that pass trivially (assert True, empty test bodies)
+   - If ALL tests for new code are mocked: REJECT with
+     "Tests verify mocks, not behavior. Add real assertions."
 
 DO NOT check spec compliance (already done).
 
@@ -236,10 +265,12 @@ but not a blocker — the other review stages already passed.
 - NEVER skip review stages
 
 ### Review stage order (strict)
-1. Spec compliance FIRST
-2. Code quality SECOND
-3. Data verification THIRD (DB tasks only)
-4. Codex cross-model FOURTH (automatic)
+1. Unit test gate FIRST (full suite must pass)
+2. Spec compliance SECOND
+3. Code quality THIRD
+4. Data verification FOURTH (DB tasks only)
+5. Smoke test gate FIFTH (if smoke_test.sh exists)
+6. Codex cross-model SIXTH (automatic)
 
 ### When a reviewer rejects
 1. Same implementer subagent fixes issues
@@ -291,9 +322,11 @@ multiple handoff files for parallel sessions instead:
 → You: "See VERIFICATION.md tests #1 and #2"
 → Implementer: Fixed 16 rows, committed. Before: $37.80, After: $32.50
 
+[Unit test gate] → 47/47 passing ✅
 [Spec reviewer] → ✅ APPROVED
 [Code quality] → ✅ APPROVED
 [Data verifier] → FE tests 5/5 passing ✅ APPROVED
+[Smoke test gate] → 4/4 checks pass ✅
 
 [Codex auto-review]
 → Codex: "Looks correct. One note: the WHERE clause should also filter by
@@ -308,9 +341,11 @@ multiple handoff files for parallel sessions instead:
 
 [No pre-flight needed — code only]
 [Implementer] → Refactored, 12 tests passing, committed
+[Unit test gate] → 49/49 passing ✅
 [Spec reviewer] → ✅ APPROVED
 [Code quality] → ✅ APPROVED
 [No data verification — code only]
+[Smoke test gate] → 4/4 checks pass ✅
 [Codex auto-review] → "Clean refactor. No issues." ✅
 
 [Mark Task 2 complete]
@@ -326,11 +361,13 @@ Done!
 
 ## Red Flags — STOP
 
-- Skipping any review stage
+- Skipping any review stage (including unit test gate and smoke test gate)
 - Pushing to remote (NEVER)
 - Running deploy commands (NEVER)
 - Dispatching parallel implementers
-- Proceeding with failing data verification
+- Proceeding with failing tests or data verification
+- Proceeding with failing smoke test
 - Trusting "looks correct" without evidence
 - Starting later review stages before earlier ones pass
 - Moving to next task with open review issues
+- Writing mock-only tests when real tests are possible

@@ -1,20 +1,38 @@
 ---
 name: wrap-up
-description: Use when user says "wrap up", "close session", "end session",
-  "wrap things up", "close out this task", or invokes /wrap-up — runs
-  end-of-session checklist for data verification, commits, project state,
-  and self-improvement. NEVER pushes to remote. NEVER deploys.
+description: End-of-session checklist with confidence dashboard, data verification,
+  commits, project state updates, and self-improvement. Use when user says "wrap up",
+  "close session", "end session", "wrap things up", "close out this task", "I'm done",
+  "that's it", "that's it for today", "ok I'm good", "nothing else", or invokes /wrap-up.
+  NEVER pushes to remote. NEVER deploys.
 ---
 
 # Session Wrap-Up
 
-Run five phases in order. Each phase is conversational and inline.
+Run six phases in order. Each phase is conversational and inline.
 All phases auto-apply without asking; present a consolidated report at the end.
 
 **HARD RULES:**
 - **NEVER run `git push`.** Spencer pushes manually. Pushing triggers auto-deploy on Railway.
 - **NEVER run any deploy command.** No deploy scripts, no Railway CLI, nothing.
 - **Commits only.** Stage and commit. That's it.
+
+---
+
+## Phase 0: Confidence Check
+
+Run `/status` to get the current project health dashboard.
+
+1. Execute the full confidence dashboard (tests, lint, data verification, smoke test, git)
+2. Record the confidence score
+3. If score < 70:
+   > **WARNING: Project confidence is {score}/100.**
+   > Address the issues below before wrapping up:
+   > {list failing signals from dashboard}
+4. Include the full dashboard output in the final report
+
+Proceed with remaining phases regardless — wrap-up should always complete,
+but the warning ensures Spencer sees the state clearly before the session ends.
 
 ---
 
@@ -129,8 +147,14 @@ Commit any changes. **DO NOT PUSH.**
 ```
 ## Session Wrap-Up Complete
 
+### Confidence Dashboard
+{Full /status output — score, signal table, unresolved items, recommendation}
+
 ### Data Verification
 {X/Y passing, or "N/A — no database"}
+
+### Smoke Test
+{All pass / X failures / N/A — no smoke_test.sh}
 
 ### Commits (NOT PUSHED)
 - {hash}: {message}

@@ -17,6 +17,7 @@ projects and existing ones mid-development.
 - `PROJECT_STATE.md` — persistent project dashboard
 - `VERIFICATION.md` — ground-truth test case template (if project has data)
 - `verification/check_all.sql` or `.py` — executable verification queries (if applicable)
+- `smoke_test.sh` — real-connection health checks (all projects)
 
 ---
 
@@ -65,6 +66,10 @@ all questions at once.
 ### Non-Database Projects (frontend, CLI, AI/ML)
 11b. **What does 'working correctly' look like?** — key behaviors, expected outputs, success criteria
 12b. **Any external APIs or services?** — endpoints, rate limits, authentication
+
+### Smoke Test Questions (all projects)
+13b. **What are the real external connections?** — database, APIs, third-party services, file systems. List everything the project talks to at runtime.
+14b. **What does a minimal end-to-end success look like?** — one real request/response cycle that proves the system is wired up correctly (e.g., "bot responds to a slash command", "API returns a 200", "CLI produces output from real data").
 
 ### Work Stream Questions (all projects)
 13. **What are you working on right now?** — current task or priority
@@ -178,6 +183,106 @@ WHERE {conditions};
 
 **No database:** Skip verification file creation entirely.
 
+### smoke_test.sh (all projects)
+
+Generate a smoke test script tailored to the project's external connections
+(from questions 13b and 14b). This tests real connections, not mocked behavior.
+
+```bash
+#!/usr/bin/env bash
+# Smoke test for {project_name}
+# Tests real connections and basic end-to-end flow.
+# Run: bash smoke_test.sh
+# Exit 0 = all pass, Exit 1 = failures
+set -euo pipefail
+
+PASS=0
+FAIL=0
+ERRORS=""
+
+check() {
+  local name="$1"
+  shift
+  if "$@" >/dev/null 2>&1; then
+    echo "  PASS: $name"
+    ((PASS++))
+  else
+    echo "  FAIL: $name"
+    ERRORS+="  - $name\n"
+    ((FAIL++))
+  fi
+}
+
+echo "=== Smoke Test: {project_name} ==="
+echo ""
+
+# --- Connection Checks ---
+echo "Connections:"
+# {Generate checks based on project type and interview answers:}
+#
+# Database (Postgres):
+#   check "Database connection" psql "$DATABASE_URL" -c "SELECT 1"
+#   check "Key table exists" psql "$DATABASE_URL" -c "SELECT count(*) FROM {table}"
+#
+# Database (Supabase):
+#   check "Supabase connection" curl -sf "$SUPABASE_URL/rest/v1/" -H "apikey: $SUPABASE_ANON_KEY"
+#
+# API endpoint:
+#   check "API reachable" curl -sf https://api.example.com/health
+#
+# Redis:
+#   check "Redis ping" redis-cli ping
+#
+# File system:
+#   check "Data dir exists" test -d ./data
+
+echo ""
+
+# --- Functional Checks ---
+echo "Functional:"
+# {Generate checks based on what "minimal E2E success" looks like:}
+#
+# CLI tool:
+#   check "CLI runs" ./my-cli --version
+#   check "CLI produces output" ./my-cli --dry-run
+#
+# Web server:
+#   check "Server responds" curl -sf http://localhost:3000/health
+#
+# Discord bot:
+#   check "Bot token valid" python3 -c "import discord; print('ok')"
+#
+# Script:
+#   check "Main script runs" python3 main.py --dry-run
+
+echo ""
+
+# --- Summary ---
+TOTAL=$((PASS + FAIL))
+echo "=== Results: $PASS/$TOTAL passed ==="
+if [[ $FAIL -gt 0 ]]; then
+  echo ""
+  echo "Failures:"
+  echo -e "$ERRORS"
+  exit 1
+fi
+exit 0
+```
+
+**Project-type-specific guidance:**
+
+| Project Type | Connection Checks | Functional Checks |
+|---|---|---|
+| Database-backed | DB connection, key table exists, sample query | Seed script runs, query returns expected rows |
+| Frontend | Dev deps installed | Dev server starts, main page loads (curl localhost) |
+| CLI tool | Dependencies available | Binary/script runs with --help, basic command works |
+| API server | DB connection (if any), deps installed | Server starts, health endpoint, one real endpoint |
+| Discord bot | Token valid, DB connection | Bot can authenticate (dry-run) |
+| AI/ML | Model file/API key available | Inference on sample input succeeds |
+
+Always generate real checks based on the interview answers. Don't leave the
+template comments in — replace them with actual project-specific checks.
+
 ---
 
 ## Step 4: Confirm and Advise
@@ -205,6 +310,7 @@ If in a git repo:
 ```bash
 git add PROJECT_STATE.md
 git add VERIFICATION.md verification/ 2>/dev/null
+git add smoke_test.sh 2>/dev/null
 ```
 
 Do NOT auto-commit. Just stage. Tell the user files are staged.
