@@ -1,9 +1,10 @@
 ---
 name: subagent-driven-development
-description: Use when executing implementation plans with independent tasks in the
-  current session. Dispatches fresh subagents per task with multi-stage review.
-  Self-contained with all subagent prompts embedded. Includes pre-flight checks,
-  data verification, and automatic Codex cross-model review at phase boundaries.
+description: This skill should be used when executing implementation plans with
+  independent tasks in the current session. It dispatches fresh subagents per task
+  with multi-stage review. Self-contained with all subagent prompts embedded.
+  Includes pre-flight checks, data verification, and automatic Codex cross-model
+  review at phase boundaries.
 ---
 
 # Subagent-Driven Development
@@ -35,26 +36,38 @@ For each task:
    → pre-flight agent checks scope, context, data safety
    → Address issues before proceeding
 
-2. IMPLEMENT
+2. APPROACH CHECK (all tasks)
+   → Implementer outputs BEFORE writing any code:
+     a. Understanding of the task (2-3 sentences)
+     b. Planned approach (what files to change, in what order)
+     c. Assumptions being made (what's assumed true but not verified)
+     d. Tradeoffs (or "none" for simple tasks)
+   → Orchestrator reviews the approach
+   → If wrong direction or bad assumptions: correct BEFORE coding
+   → If sound: proceed to IMPLEMENT
+   → Trivial tasks (< 10 lines): 1-2 sentences suffice
+
+3. IMPLEMENT
    → implementer subagent with full task text + context
    → TDD enforced: write test → watch it fail → implement → pass
    → Mocks ONLY for truly external services (APIs you can't call locally)
    → Commits when done
 
-3. UNIT TEST GATE
+4. UNIT TEST GATE
    → Run the FULL test suite (not just the new tests)
    → ALL tests must pass before proceeding
    → If any fail: return to implementer with failures, fix, re-run
    → Repeat until green. This gate is non-negotiable.
 
-4. SPEC REVIEW
-   → spec reviewer confirms implementation matches spec exactly
-   → Fix issues → re-review → must pass
-
-5. CODE QUALITY REVIEW
-   → code quality reviewer checks bugs, security, maintainability, testing quality
-   → Flags mock-only tests that could test real code
-   → Fix issues → re-review → must pass
+5. SPEC + CODE QUALITY REVIEW (parallel)
+   → Dispatch BOTH reviewers as parallel agents (model: sonnet)
+   → Spec reviewer checks implementation matches spec
+   → Code quality reviewer checks bugs, security, simplicity, surgical scope
+   → Collect both verdicts
+   → If either rejects: send COMBINED feedback to implementer
+   → Implementer fixes all issues in one pass (not two separate rounds)
+   → Re-run both reviewers in parallel again
+   → Must both pass before proceeding
 
 6. DATA VERIFICATION (if task modified database)
    → data-verifier agent runs VERIFICATION.md ground-truth checks
@@ -66,17 +79,47 @@ For each task:
    → If fail: return to implementer to fix real integration issues
    → If no smoke_test.sh: warn "No smoke test defined" but don't block
 
-8. CODEX CROSS-MODEL REVIEW (automatic)
-   → Auto-invoke /codex compare with task + diff + verification results
-   → Report Codex's findings alongside Claude's assessment
-   → Synthesize — flag disagreements for user attention
+8. CODEX BACKGROUND AUDIT + LOOKAHEAD PRE-FLIGHT (async, non-blocking)
+   → Fire headless Codex in background (read-only, --sandbox read-only)
+   → If there's a NEXT task in the queue that needs pre-flight:
+     dispatch pre-flight for it in background too (model: haiku, run_in_background)
+   → Do NOT wait for either — mark task complete and move on
+   → Codex report reviewed at next natural pause
+   → Pre-flight result ready by time next task starts
 
-9. Mark task complete
+9. Mark task complete → move to next task immediately
 ```
 
 After all tasks:
-1. Dispatch integration-reviewer agent for full review
-2. Run `/status` for confidence dashboard — if score < 70, flag for user
+1. **Check for pending Codex reports** — review any background audit results
+   that came back while you were working. Triage findings (fix real issues,
+   dismiss false positives with reasoning).
+2. Dispatch integration-reviewer agent for full review
+3. Run `/status` for confidence dashboard — if score < 70, flag for user
+
+---
+
+## Subagent Model Routing
+
+Use the cheapest model that can handle each role. The orchestrator (Opus) reviews
+all verdicts anyway — subagents just need to do their specific job well.
+
+| Role | Model | Why |
+|------|-------|-----|
+| Implementer | `opus` | Writes code, TDD, complex reasoning — the hard one |
+| Code quality reviewer | `sonnet` | Structured review with clear checklist; orchestrator checks verdict |
+| Spec reviewer | `sonnet` | Diff-vs-spec comparison — structured and fast |
+| Data verifier | `sonnet` | May construct queries, compare values — moderate complexity |
+| Pre-flight | `haiku` | Run commands, check 4 categories, report — simple and structured |
+| Integration reviewer | `sonnet` | Diff analysis and merge safety |
+| Explore agents | `sonnet` | Research, file reading, summarization |
+
+Set the `model` parameter when dispatching each Agent. Example:
+```
+Agent(model: "haiku", subagent_type: "pre-flight", prompt: "...")
+Agent(model: "sonnet", subagent_type: "code-reviewer", prompt: "...")
+Agent(model: "opus", prompt: "You are implementing a specific task...")
+```
 
 ---
 
@@ -133,20 +176,28 @@ CONTEXT:
 - Verification tests exist: {yes/no}
 
 INSTRUCTIONS:
-1. Questions? ASK BEFORE implementing. Don't guess.
-2. TDD is REQUIRED — follow this exact cycle:
+1. BEFORE WRITING ANY CODE, output your approach:
+   - What you understand the task to be (2-3 sentences)
+   - How you plan to implement it (which files, what changes, in what order)
+   - Assumptions you're making (what you think is true but haven't verified)
+   - Tradeoffs you see (or "none" for straightforward tasks)
+   Wait for confirmation before proceeding. For trivial tasks (< 10 lines),
+   keep the approach to 1-2 sentences.
+2. Questions? ASK BEFORE implementing. Don't guess.
+3. TDD is REQUIRED — follow this exact cycle:
    a. Write the test FIRST
    b. Run it — watch it FAIL (if it passes, your test is wrong)
    c. Write the minimal code to make it PASS
    d. Refactor if needed, re-run to confirm still green
-3. Mocks ONLY for truly external services (APIs, third-party DBs you can't
+4. Mocks ONLY for truly external services (APIs, third-party DBs you can't
    call locally). If you can test it without a mock, you MUST test without a mock.
-4. Minimal code — nothing beyond the task spec
-5. Self-review before reporting done:
+5. Minimal code — nothing beyond the task spec. No "while I'm here" refactors.
+6. Self-review before reporting done:
    - Everything asked for? Anything extra? (Remove extras)
    - Run the FULL test suite (not just new tests) — all pass?
    - For DB changes: show before/after SELECT output
-6. Commit with descriptive message. DO NOT PUSH.
+   - Did I touch files unrelated to this task? (Revert if so)
+7. Commit with descriptive message. DO NOT PUSH.
 
 REPORT:
 - What you implemented
@@ -159,7 +210,7 @@ REPORT:
 
 ### Spec Reviewer
 
-Dispatch AFTER implementer. Checks exact match to spec.
+Dispatch in PARALLEL with Code Quality Reviewer (both model: sonnet).
 
 ```
 You are a spec compliance reviewer.
@@ -182,7 +233,7 @@ VERDICT: APPROVED or REJECTED with specific fixes needed.
 
 ### Code Quality Reviewer
 
-Dispatch AFTER spec review passes.
+Dispatch in PARALLEL with Spec Reviewer (both model: sonnet).
 
 ```
 You are a code quality reviewer. Spec compliance is already verified.
@@ -202,6 +253,16 @@ Check:
    - Flag tests that pass trivially (assert True, empty test bodies)
    - If ALL tests for new code are mocked: REJECT with
      "Tests verify mocks, not behavior. Add real assertions."
+7. SIMPLICITY: Is this the minimum code that solves the problem?
+   - Flag code that solves problems the task didn't ask about
+   - Flag abstractions that serve only one call site
+   - Flag "just in case" error handling for scenarios not in the spec
+   - If you can delete code without breaking the spec: REJECT
+8. SURGICAL SCOPE: Does the diff touch only what the task requires?
+   - Flag changes to files not mentioned in or required by the task
+   - Flag formatting/style changes to code the task didn't modify
+   - Flag "while I'm here" refactors of adjacent code
+   - If unrelated files were changed: REJECT with "Revert changes to {files}"
 
 DO NOT check spec compliance (already done).
 
@@ -231,29 +292,45 @@ VERDICT:
 
 ---
 
-### Codex Auto-Review
+### Background Codex Audit (async, non-blocking)
 
-After all other reviews pass, auto-invoke Codex for cross-model verification.
-This runs automatically — no user action needed.
+After all synchronous reviews pass, fire a headless Codex in the background.
+**Do NOT wait for results.** Move to the next task immediately.
 
+Codex is GPT-5.4 — a completely different model with different reasoning patterns
+and different blind spots than Claude. That's the point: it catches things that
+multiple rounds of Claude review will consistently miss.
+
+**Dispatch (read-only, background):**
 ```bash
 bash ~/.claude/hooks/codex-delegate.sh compare \
   "Review changes for task: {task_description}. Diff: {abbreviated diff}. \
    {If DB task: Verification results: X/Y passing.} \
-   Focus on: bugs, edge cases, production risks. Give independent assessment." \
-  --timeout 120 --cwd "$(pwd)"
+   Focus on: bugs, edge cases, security, production risks. \
+   Give your independent assessment. Flag anything concerning." \
+  --sandbox read-only --search --timeout 180 --cwd "$(pwd)" \
+  --output ".claude/codex-audit-task-{task_number}.md"
 ```
 
-**After Codex responds:**
-1. Present Codex's findings
-2. Present Claude's assessment
-3. **Synthesis:**
-   - Agreement → "Both Claude and Codex confirm: {consensus}"
-   - Disagreement → "Codex flagged {X} but Claude disagrees because {Y}. User should decide."
-4. If Codex found a real issue Claude missed → fix it before proceeding
+**Key rules:**
+- `--sandbox read-only` — Codex can look at everything but touch nothing
+- `--output` — writes report to a file so Opus can read it later
+- Do NOT block. Do NOT wait. Move to the next task.
+- If Codex errors or times out, the report file just won't exist. That's fine.
 
-**If Codex times out or errors:** Note it and proceed. Codex review is valuable
-but not a blocker — the other review stages already passed.
+**When Opus reviews the report (at next natural pause):**
+1. Read the Codex audit file
+2. For each finding, apply judgment:
+   - **Real issue Claude missed** → fix it, note "caught by Codex background audit"
+   - **False positive** → dismiss with one-line reasoning
+   - **Disagreement with Claude's approach** → flag for user if significant
+3. Delete the audit file after processing
+4. If Codex found nothing or the file doesn't exist → move on silently
+
+**When to check for pending reports:**
+- Between tasks (if there's a natural pause)
+- After all tasks complete (mandatory — review all outstanding reports)
+- The orchestrator should NOT interrupt a running task to check Codex reports
 
 ---
 
@@ -264,19 +341,23 @@ but not a blocker — the other review stages already passed.
 - NEVER dispatch parallel implementers (conflicts)
 - NEVER skip review stages
 
-### Review stage order (strict)
-1. Unit test gate FIRST (full suite must pass)
-2. Spec compliance SECOND
-3. Code quality THIRD
-4. Data verification FOURTH (DB tasks only)
-5. Smoke test gate FIFTH (if smoke_test.sh exists)
-6. Codex cross-model SIXTH (automatic)
+### Stage order (strict)
+0. Approach check (before any code is written — not a review, a pre-coding gate)
+1. Unit test gate (full suite must pass)
+2. Spec + code quality (parallel — both dispatched simultaneously)
+3. Data verification (DB tasks only)
+4. Smoke test gate (if smoke_test.sh exists)
+5. Codex background audit (async — fires and moves on, reviewed later)
 
 ### When a reviewer rejects
 1. Same implementer subagent fixes issues
 2. Same reviewer re-reviews
-3. Repeat until approved
-4. NEVER skip the re-review
+3. Maximum 3 review cycles per stage (implement → review → fix → review → fix → review)
+4. After 3 rejections at the same stage:
+   a. Present the reviewer's concerns + all fix attempts to the user
+   b. Ask: "Fix manually, skip this review stage, or abort the task?"
+   c. Do NOT auto-retry a 4th time
+5. NEVER skip the re-review
 
 ### Git rules
 - Implementer commits with descriptive messages
@@ -318,6 +399,12 @@ multiple handoff files for parallel sessions instead:
 
 [Pre-flight agent] → PROCEED (backup exists, no scope conflicts)
 
+[Approach check] → "I'll update the FE rate migration to correct ages 50-65.
+  Files: migrations/fix_anico_fe_rates.sql. Approach: UPDATE with WHERE on
+  product_type='FE' AND age BETWEEN 50 AND 65. Assumption: VERIFICATION.md
+  has the correct values. Tradeoffs: none."
+→ Orchestrator: Approach is sound. Proceed.
+
 [Implementer] → "What are correct rates for ages 50-65?"
 → You: "See VERIFICATION.md tests #1 and #2"
 → Implementer: Fixed 16 rows, committed. Before: $37.80, After: $32.50
@@ -328,25 +415,30 @@ multiple handoff files for parallel sessions instead:
 [Data verifier] → FE tests 5/5 passing ✅ APPROVED
 [Smoke test gate] → 4/4 checks pass ✅
 
-[Codex auto-review]
-→ Codex: "Looks correct. One note: the WHERE clause should also filter by
-   product_type to prevent accidentally updating IUL rows."
-→ Claude: "Good catch — but the migration already has product_type='FE' in
-   the WHERE clause (line 14). Codex may have missed that."
-→ Synthesis: Both agree implementation is correct. Codex concern addressed.
+[Codex background audit] → fired async, moving on immediately
 
 [Mark Task 1 complete]
 
 --- Task 2: Refactor query builder ---
 
 [No pre-flight needed — code only]
+
+[Approach check] → "Extracting repeated query logic into a builder.
+  Files: src/query.ts, test/query.test.ts. No tradeoffs."
+→ Orchestrator: Proceed.
+
 [Implementer] → Refactored, 12 tests passing, committed
 [Unit test gate] → 49/49 passing ✅
 [Spec reviewer] → ✅ APPROVED
 [Code quality] → ✅ APPROVED
 [No data verification — code only]
 [Smoke test gate] → 4/4 checks pass ✅
-[Codex auto-review] → "Clean refactor. No issues." ✅
+[Codex background audit] → fired async
+
+[Between tasks — check for Codex reports]
+→ Task 1 Codex report arrived: "WHERE clause should filter by product_type"
+→ Opus: Already has product_type='FE' on line 14. False positive. Dismissed.
+→ Task 2 Codex report: not back yet. Move on.
 
 [Mark Task 2 complete]
 
@@ -371,3 +463,4 @@ Done!
 - Starting later review stages before earlier ones pass
 - Moving to next task with open review issues
 - Writing mock-only tests when real tests are possible
+- Retrying the same review stage more than 3 times without user input

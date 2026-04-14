@@ -1,5 +1,20 @@
 ---
 description: Pre-implementation check for scope conflicts, missing context, data safety, and dependencies
+whenToUse: |
+  Use this agent before implementing any task that modifies database rows,
+  has dependencies on other tasks, or touches files shared across sessions.
+  <example>
+  Task: "Fix ANICO FE rates for ages 50-65"
+  Reason: Modifies database rows — need to check backup status and row count
+  </example>
+  <example>
+  Task: "Refactor query builder used by rate lookup and embed pipeline"
+  Reason: Shared utility — check if parallel sessions depend on current API
+  </example>
+  <example>
+  Task: "Add new carrier table and seed initial data"
+  Reason: Creates tables + inserts data — check schema exists, env vars set
+  </example>
 ---
 
 # Pre-Flight Agent

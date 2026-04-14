@@ -1,5 +1,16 @@
 ---
 description: Review parallel branch merges for logic, data, and schema conflicts
+whenToUse: |
+  Use this agent when merging branches from parallel development sessions.
+  Catches conflicts that git merge alone cannot detect.
+  <example>
+  Two parallel sessions completed: branch feature/iul-rates and feature/fe-rates
+  Reason: Both modified rate tables — check for data conflicts and migration order
+  </example>
+  <example>
+  Three branches ready to merge after /handoff --split
+  Reason: Need safe merge order and verification between each merge
+  </example>
 ---
 
 # Integration Reviewer Agent

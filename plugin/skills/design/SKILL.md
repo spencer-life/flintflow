@@ -47,31 +47,45 @@ what, who, stack, and success criteria. Don't over-interview — move to researc
 
 ## Phase 2: Research
 
-Full research using all available tools. Run in parallel where possible.
+Full research using all available tools. **PARALLEL DISPATCH IS MANDATORY.**
 This phase is critical — never skip it, even for "simple" ideas.
 
-### 2a. Context7 Docs (always)
+### Parallel Research Dispatch
+
+Dispatch these as parallel Agent calls in a SINGLE message:
+
+**Agent 1 — Context7 Docs:**
 Pull fresh documentation for every library, framework, and API mentioned in the
 interview. Even ones you "know" — always pull current docs via Context7.
 
-### 2b. Web Search (always)
+Version check (if building on existing code):
+- Check installed versions first: `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`
+- Pull docs for the INSTALLED version, not just "latest"
+- If the installed version is significantly behind current, note it
+- If breaking changes exist between installed and current, flag explicitly
+
+**Agent 2 — Web Search:**
 - How do people typically build this?
 - Best libraries/tools for the job in the chosen stack
 - Known pitfalls and gotchas
 - Existing open-source implementations to learn from
 
-### 2c. Codebase Exploration (if building on existing code)
-- Dispatch Explore agents to understand current architecture
+**Agent 3 — Codebase Exploration (if building on existing code):**
+- Dispatch Explore agent to understand current architecture
 - Find reusable patterns, utilities, abstractions
 - Identify integration points and potential conflicts
 
-### 2d. NotebookLM Deep Research (if complex domain)
-For ideas involving unfamiliar domains, regulations, or complex integrations:
+Wait for all three to return, then synthesize results before moving to Phase 3.
+
+### Optional Follow-Up (dispatch separately if needed)
+
+**NotebookLM Deep Research** (if complex domain):
+For unfamiliar domains, regulations, or complex integrations:
 - Create notebook with relevant sources
 - Run deep research query via `nlm research start`
 - Skip for straightforward technical tasks
 
-### 2e. Codex Second Opinion (if architecture is non-obvious)
+**Codex Second Opinion** (if architecture is non-obvious):
 - Ask Codex: "Given {requirements}, what's the best architecture for X?"
 - Compare Claude's instinct vs Codex's recommendation
 - Flag disagreements for user decision

@@ -9,7 +9,7 @@ description: End-of-session checklist with confidence dashboard, data verificati
 
 # Session Wrap-Up
 
-Run six phases in order. Each phase is conversational and inline.
+Run seven phases in order. Each phase is conversational and inline.
 All phases auto-apply without asking; present a consolidated report at the end.
 
 **HARD RULES:**
@@ -36,7 +36,13 @@ but the warning ensures Spencer sees the state clearly before the session ends.
 
 ---
 
-## Phase 1: Verify Data
+## Phases 1 + 2: Data Verification, Then Codex Review (SEQUENTIAL)
+
+Data verification MUST complete first — it writes to verification/history.log
+and updates PROJECT_STATE.md. Codex review needs a stable working tree to
+inspect. Run data-verify, then Codex review on the resulting state.
+
+### Phase 1: Verify Data
 
 **If this project has a database component** (check for PROJECT_STATE.md,
 VERIFICATION.md, or database config files):
@@ -44,14 +50,53 @@ VERIFICATION.md, or database config files):
 1. Run `/data-verify` — full verification suite
 2. Record results: X/Y tests passing, list any failures
 3. If tests are failing that were passing earlier in the session, flag prominently:
-   > ⚠️ Data regression detected: {test} was passing, now failing.
+   > Data regression detected: {test} was passing, now failing.
    > This session may have introduced a data error.
 
 **If no database component:** Skip this phase.
 
+### Phase 2: Codex Review
+
+**Pre-check:** Run `git status` in the project directory. If there are no uncommitted
+changes (nothing staged, unstaged, or untracked source files), skip this phase silently.
+
+**If uncommitted changes exist:**
+
+1. Invoke Codex review (read-only, background):
+   ```bash
+   bash ~/.claude/hooks/codex-delegate.sh review "" --sandbox read-only --search --timeout 120 --cwd "$(pwd)"
+   ```
+
+2. For higher-risk work, run a dedicated Codex verifier flow after the review:
+   - UI/browser/API/OCR/manual artifact work:
+     ```bash
+     just codex_verify_artifacts "Summarize the end-to-end artifacts that prove this task works."
+     ```
+   - General implementation confidence:
+     ```bash
+     just codex_verify "Review the task outcome, current diff, and test evidence before wrap-up."
+     ```
+
+3. **Triage each finding independently:**
+   - **Real issue** (bug, security flaw, logic error, missing edge case) → Fix now, before committing.
+   - **False positive** (Codex misread the code, flagged something intentional) → Dismiss with one-line reasoning.
+   - **Style/preference** (not a bug, just a different approach) → Dismiss.
+
+4. **Log the triage for the final report:**
+   ```
+   Codex Review: X findings — Y fixed, Z dismissed
+   - Fixed: {brief description of each fix}
+   - Dismissed: {brief reason for each dismissal}
+   ```
+
+5. If Codex timed out or errored: Note it and proceed. The other phases
+   (confidence check, data verification) already validated the work.
+
+**This phase is read-only from Codex's perspective.** Codex analyzes; Claude decides and acts.
+
 ---
 
-## Phase 2: Commit (NEVER PUSH)
+## Phase 3: Commit (NEVER PUSH)
 
 4. Run `git status` in each repo directory touched during the session
 5. If uncommitted changes exist, stage relevant files and commit with a descriptive message
@@ -64,7 +109,7 @@ VERIFICATION.md, or database config files):
 
 ---
 
-## Phase 3: Update Project State
+## Phase 4: Update Project State
 
 **If PROJECT_STATE.md exists:**
 
@@ -86,7 +131,7 @@ VERIFICATION.md, or database config files):
 
 ---
 
-## Phase 4: Remember It
+## Phase 5: Remember It
 
 Review what was learned during the session. Decide where each piece of
 knowledge belongs:
@@ -107,7 +152,7 @@ knowledge belongs:
 
 ---
 
-## Phase 5: Review & Improve
+## Phase 6: Review & Improve
 
 Analyze the conversation for self-improvement findings. If the session was
 short or routine, say "Nothing to improve" and finish.
@@ -152,6 +197,10 @@ Commit any changes. **DO NOT PUSH.**
 
 ### Data Verification
 {X/Y passing, or "N/A — no database"}
+
+### Codex Review
+{X findings — Y fixed, Z dismissed / Skipped — no uncommitted changes / Timed out — proceeded without}
+{If artifact-verifier ran: include what evidence Codex marked proven vs unproven}
 
 ### Smoke Test
 {All pass / X failures / N/A — no smoke_test.sh}

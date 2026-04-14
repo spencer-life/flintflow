@@ -48,7 +48,21 @@ all questions at once.
 2. **What's the tech stack?** — frontend, backend, database, AI/ML, deployment
 3. **What's the current status?** — working, broken, just starting, migrating
 
-### Database Questions (if project has a database)
+### Project Type Detection (after question 2)
+Based on the tech stack answer, classify the project:
+
+| Type | Signals | Next Questions |
+|------|---------|----------------|
+| database-backed | Postgres, Supabase, MongoDB, SQL mentioned | Ask Database + Data Source + Verification questions |
+| frontend-only | React, Next, Vue, no backend DB | Skip to Non-Database questions |
+| CLI tool | Python script, Rust CLI, Go binary | Skip to Non-Database questions |
+| API server | Express, FastAPI, with or without DB | Database questions only if DB mentioned |
+| AI/ML pipeline | model training, embeddings, inference | Skip to Non-Database questions unless vector DB |
+
+Skip the entire Database + Data Source + Verification blocks for projects classified
+as frontend-only, CLI tool, or AI/ML without a database. Jump to Non-Database questions.
+
+### Database Questions (database-backed and API-with-DB only)
 4. **What database?** — Postgres, Supabase, SQLite, MongoDB, PlanetScale, etc.
 5. **How do you connect?** — $DATABASE_URL in .env, railway CLI, supabase CLI, psql, etc.
 6. **What are the key tables?** — the ones where correctness matters
@@ -59,7 +73,7 @@ all questions at once.
 9. **Where are the source documents stored?** — local path, cloud, not yet organized
 10. **What data segments or categories exist?** — e.g., product types, customer tiers, regions
 
-### Verification Questions (if data-backed)
+### Verification Questions (database-backed only)
 11. **Can you give me 2-3 specific values you know are correct?** — e.g., "Pacific Life IUL for 45/M/NS = $247.50/mo, from the rate sheet page 12"
 12. **What queries would prove the data is right?** — or "I'll help you figure those out"
 
@@ -107,6 +121,21 @@ Last updated: {date} — Initial setup
 |--------|-------------|-----------------|-------------------|
 {one row per source, or omit if no external data sources}
 
+## Component Status (frontend-only projects)
+| Component | Status | Notes |
+|-----------|--------|-------|
+{one row per major component, or omit if not a frontend project}
+
+## Command Status (CLI tool projects)
+| Command | Status | Notes |
+|---------|--------|-------|
+{one row per CLI command/subcommand, or omit if not a CLI project}
+
+## Endpoint Status (API server projects)
+| Endpoint | Method | Status | Notes |
+|----------|--------|--------|-------|
+{one row per API endpoint, or omit if not an API project}
+
 ## Active Work Streams
 ### {current task from question 13}
 - Branch: {current branch or "main"}
@@ -122,8 +151,12 @@ Last updated: {date} — Initial setup
 - {date} #1: Project initialized. {brief status summary}.
 ```
 
-**Omit sections that don't apply.** No database → drop Data Accuracy Status and
-Source Documents. No parallel streams → drop that section. Keep it clean.
+**Omit sections that don't apply based on project type.** Keep it clean:
+- No database → drop Data Accuracy Status, Source Documents
+- Not a frontend project → drop Component Status
+- Not a CLI tool → drop Command Status
+- Not an API server → drop Endpoint Status
+- No parallel streams → drop that section
 
 ### VERIFICATION.md (data-backed projects only)
 
@@ -182,6 +215,16 @@ WHERE {conditions};
 **MongoDB/non-SQL:** Generate `verification/check_all.py` instead.
 
 **No database:** Skip verification file creation entirely.
+
+### verification/history.log (data-backed projects only)
+
+Create with a header line:
+```
+# Verification History — {project_name}
+```
+
+This file is append-only — `/data-verify` appends a one-line summary after each run.
+Format: `YYYY-MM-DD HH:MM | X/Y passing | VERDICT | brief note`
 
 ### smoke_test.sh (all projects)
 

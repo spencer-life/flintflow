@@ -1,10 +1,10 @@
 ---
 name: data-verify
-description: Run ground-truth verification queries against the database and report
-  pass/fail results. Use when user says "verify data", "check the data", "run verification",
-  "data verify", "are the values correct", "check ground truth", or invokes /data-verify.
-  Also used automatically as a review stage in subagent-driven-development for any
-  task that modifies database content.
+description: This skill runs ground-truth verification queries against the database
+  and reports pass/fail results. It should be used when the user says "verify data",
+  "check the data", "run verification", "data verify", "are the values correct",
+  "check ground truth", or invokes /data-verify. Also used automatically as a review
+  stage in subagent-driven-development for any task that modifies database content.
 ---
 
 # Data Verify
@@ -203,7 +203,25 @@ This does NOT mean the data is correct — it means we couldn't check.
 
 ---
 
-## Step 6: Update PROJECT_STATE.md
+## Step 6: Log Results to History
+
+Append a one-line summary to `verification/history.log` (create if it doesn't exist):
+
+```bash
+echo "$(date '+%Y-%m-%d %H:%M') | ${PASSING}/${TOTAL} passing | ${VERDICT} | ${BRIEF_NOTE}" >> verification/history.log
+```
+
+Format: `YYYY-MM-DD HH:MM | X/Y passing | VERDICT | brief note`
+
+This file is append-only. Never truncate or edit it. It shows trends across sessions.
+If the file doesn't exist yet, create it with a header line first:
+```bash
+echo "# Verification History — $(basename $(pwd))" > verification/history.log
+```
+
+---
+
+## Step 7: Update PROJECT_STATE.md
 
 If PROJECT_STATE.md exists, update the Data Accuracy Status table:
 

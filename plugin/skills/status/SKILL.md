@@ -15,8 +15,11 @@ This gives Spencer an instant read on whether the code is ship-ready.
 
 ## How to Run
 
-Execute all checks, calculate the score, and present the dashboard. Run checks
-in parallel where possible.
+Execute all checks, calculate the score, and present the dashboard.
+
+**PARALLEL EXECUTION IS MANDATORY.** Dispatch all 5 signal checks as parallel
+operations (concurrent Bash calls or background tasks). None depend on each other.
+Wait for all to complete, then aggregate scores. Do NOT run them sequentially.
 
 ### Step 1: Detect Project Context
 
@@ -37,9 +40,11 @@ in parallel where possible.
 # Has go.mod? → Go
 ```
 
-### Step 2: Gather Signals
+### Step 2: Gather Signals (ALL IN PARALLEL)
 
-Run these checks. For each, capture the result and calculate the score.
+Run ALL 5 checks concurrently. Dispatch them as parallel Bash calls in a single
+message — tests, lint, data verification, smoke test, and git status all at once.
+Wait for all results, then score each.
 
 #### Signal 1: Tests (35 points base)
 

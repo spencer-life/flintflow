@@ -12,11 +12,12 @@ if ! command -v codex &>/dev/null; then
 	exit 3
 fi
 # --- Defaults ---
-TIMEOUT=120
+TIMEOUT=300
 SANDBOX="read-only"
 CWD=""
 OUTPUT_FILE=""
 WORKTREE=false
+SEARCH=false
 # --- Parse subcommand ---
 SUBCMD="${1:-}"
 shift 2>/dev/null || true
@@ -45,6 +46,10 @@ while [[ $# -gt 0 ]]; do
 		WORKTREE=true
 		shift
 		;;
+	--search)
+		SEARCH=true
+		shift
+		;;
 	*)
 		shift
 		;;
@@ -52,7 +57,7 @@ while [[ $# -gt 0 ]]; do
 done
 # --- Output file setup ---
 if [[ -z "$OUTPUT_FILE" ]]; then
-	OUTPUT_FILE=$(mktemp /tmp/codex-result-XXXXXX.txt)
+	OUTPUT_FILE=$(mktemp "${TMPDIR:-/tmp}"/codex-result-XXXXXX.txt)
 fi
 # --- Worktree setup (Phase 6a) ---
 WORKTREE_DIR=""
@@ -75,7 +80,7 @@ if [[ "$WORKTREE" == true ]]; then
 		exit 1
 	fi
 	WORKTREE_BRANCH="codex/temp-$(date +%s)"
-	WORKTREE_DIR=$(mktemp -d /tmp/codex-worktree-XXXXXX)
+	WORKTREE_DIR=$(mktemp -d "${TMPDIR:-/tmp}"/codex-worktree-XXXXXX)
 	rmdir "$WORKTREE_DIR" # git worktree add needs a non-existent path
 	git -C "$EFFECTIVE_CWD" worktree add "$WORKTREE_DIR" -b "$WORKTREE_BRANCH" 2>/dev/null
 	CWD="$WORKTREE_DIR"
@@ -89,17 +94,22 @@ EFFECTIVE_CWD="${CWD:-$(pwd)}"
 if ! git -C "$EFFECTIVE_CWD" rev-parse --is-inside-work-tree &>/dev/null; then
 	BASE_ARGS+=(--skip-git-repo-check)
 fi
+# --- Search args ---
+SEARCH_ARGS=()
+if [[ "$SEARCH" == true ]]; then
+	SEARCH_ARGS+=(-c 'search=true')
+fi
 # --- Execute subcommand ---
 case "$SUBCMD" in
 exec)
 	if [[ -z "$PROMPT" ]]; then
-		echo "Usage: codex-delegate.sh exec \"prompt\" [--timeout N] [--sandbox MODE] [--cwd DIR] [--worktree]" >&2
+		echo "Usage: codex-delegate.sh exec \"prompt\" [--timeout N] [--sandbox MODE] [--cwd DIR] [--worktree] [--search]" >&2
 		exit 1
 	fi
-	timeout "$TIMEOUT" codex exec "${BASE_ARGS[@]}" -s "$SANDBOX" "$PROMPT" >/dev/null 2>&1 && EXIT_CODE=0 || EXIT_CODE=$?
+	timeout "$TIMEOUT" codex exec "${BASE_ARGS[@]}" "${SEARCH_ARGS[@]}" -s "$SANDBOX" "$PROMPT" >/dev/null 2>&1 && EXIT_CODE=0 || EXIT_CODE=$?
 	;;
 review)
-	REVIEW_ARGS=(--ephemeral)
+	REVIEW_ARGS=(--ephemeral "${SEARCH_ARGS[@]}")
 	[[ -n "$CWD" ]] && REVIEW_ARGS+=(-c "cwd=\"$CWD\"")
 	if [[ -n "$PROMPT" ]]; then
 		# PROMPT is used as --base branch
@@ -114,15 +124,15 @@ research)
 		exit 1
 	fi
 	RESEARCH_PROMPT="Search the web and provide a concise, factual answer: ${PROMPT}"
-	timeout "$TIMEOUT" codex exec "${BASE_ARGS[@]}" -s read-only "$RESEARCH_PROMPT" >/dev/null 2>&1 && EXIT_CODE=0 || EXIT_CODE=$?
+	timeout "$TIMEOUT" codex exec "${BASE_ARGS[@]}" -c 'search=true' -s read-only "$RESEARCH_PROMPT" >/dev/null 2>&1 && EXIT_CODE=0 || EXIT_CODE=$?
 	;;
 compare)
 	if [[ -z "$PROMPT" ]]; then
-		echo "Usage: codex-delegate.sh compare \"question\" [--timeout N] [--cwd DIR]" >&2
+		echo "Usage: codex-delegate.sh compare \"question\" [--timeout N] [--cwd DIR] [--search]" >&2
 		exit 1
 	fi
 	COMPARE_PROMPT="Analyze this codebase and give your independent assessment: ${PROMPT}"
-	timeout "$TIMEOUT" codex exec "${BASE_ARGS[@]}" -s read-only "$COMPARE_PROMPT" >/dev/null 2>&1 && EXIT_CODE=0 || EXIT_CODE=$?
+	timeout "$TIMEOUT" codex exec "${BASE_ARGS[@]}" "${SEARCH_ARGS[@]}" -s read-only "$COMPARE_PROMPT" >/dev/null 2>&1 && EXIT_CODE=0 || EXIT_CODE=$?
 	;;
 *)
 	echo "Unknown subcommand: $SUBCMD" >&2

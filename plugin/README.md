@@ -47,6 +47,19 @@ flintflow fixes these by adding ground-truth verification, persistent project st
 |--------|-------------|
 | `codex-delegate.sh` | Bash wrapper for Codex CLI with subcommands (exec, review, research, compare), timeout handling, git worktree support, and post-write lint/format integration. |
 
+## Optional Codex Verifier Layer
+
+flintflow works without any Codex-specific local skills, but Spencer's preferred
+setup is to pair Flint Flow with a small read-only Codex verifier pack:
+
+- `claude-work-verifier` — independent task review with `BLOCK`, `FIX`, or `SHIP`
+- `artifact-verifier` — evidence-first verification for UI/API/data/browser work
+- `handoff-auditor` — stale-context and drift check before resuming from handoff
+- `ground-truth-coverage` — audit `VERIFICATION.md` coverage without inventing values
+
+These are invoked through the same wrapper and `just` shortcuts used by the
+`/codex` skill. Codex stays read-only by default; Claude remains the executor.
+
 ## Key Concepts
 
 ### VERIFICATION.md

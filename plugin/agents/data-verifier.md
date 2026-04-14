@@ -1,5 +1,20 @@
 ---
 description: Verify database data against ground-truth expected values in VERIFICATION.md
+whenToUse: |
+  Use this agent after any task that modifies database content (INSERT, UPDATE,
+  DELETE, migrations, seed scripts). Also use on manual /data-verify invocation.
+  <example>
+  Task: "Fix ANICO FE rates for ages 50-65" just completed
+  Reason: Database rows were updated — verify against VERIFICATION.md ground truth
+  </example>
+  <example>
+  User says: "verify the data" or "check ground truth"
+  Reason: Manual verification request — run full suite
+  </example>
+  <example>
+  Migration applied that alters rate calculation columns
+  Reason: Schema change could affect computed values — verify data still correct
+  </example>
 ---
 
 # Data Verifier Agent

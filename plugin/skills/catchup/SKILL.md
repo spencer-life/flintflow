@@ -134,6 +134,17 @@ Priority callouts (show prominently if present):
 4. **Missing verification** — if VERIFICATION.md has mostly FILL_IN values
 5. **Missing/corrupted sections** — if the handoff file was incomplete
 
+**Conditional Codex audit:** If the handoff is older than 3 days, drift is
+detected, relevant files are missing, or verification coverage is weak, run a
+Codex stale-context check before implementation starts:
+
+```bash
+just codex_audit_handoff .claude/handoff.md
+```
+
+Treat the Codex result as a second opinion. Claude still owns the resume flow,
+but Codex should be used to challenge stale assumptions before code changes.
+
 ---
 
 ## Approval Gate
@@ -154,9 +165,17 @@ If data failures were flagged, suggest:
 
 ## After Beginning Work
 
-Once work begins, mention briefly:
+Once work begins, check for stale handoff files:
 
-> The handoff file is still on disk. It'll be overwritten on the next `/handoff`,
+```bash
+find .claude/ -name "handoff*.md" -mtime +7 2>/dev/null
+```
+
+If any files are older than 7 days, mention:
+> There are N handoff files older than 7 days. Want me to clean them up?
+
+List the files with their ages and let the user decide. Do NOT auto-delete.
+
+Also mention:
+> The current handoff file is still on disk. It'll be overwritten on the next `/handoff`,
 > or you can delete it manually.
-
-Do not auto-delete the handoff file.
