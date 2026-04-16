@@ -301,31 +301,30 @@ Codex is GPT-5.4 — a completely different model with different reasoning patte
 and different blind spots than Claude. That's the point: it catches things that
 multiple rounds of Claude review will consistently miss.
 
-**Dispatch (read-only, background):**
+**Dispatch (read-only, background, structured JSON):**
 ```bash
-bash ~/.claude/hooks/codex-delegate.sh compare \
-  "Review changes for task: {task_description}. Diff: {abbreviated diff}. \
-   {If DB task: Verification results: X/Y passing.} \
-   Focus on: bugs, edge cases, security, production risks. \
-   Give your independent assessment. Flag anything concerning." \
-  --sandbox read-only --search --timeout 180 --cwd "$(pwd)" \
-  --output ".claude/codex-audit-task-{task_number}.md"
+bash ~/.claude/hooks/codex-delegate.sh adversarial-review "" \
+  --search --timeout 180 --cwd "$(pwd)" \
+  --output ".claude/codex-audit-task-{task_number}.json" \
+  --background
 ```
 
 **Key rules:**
-- `--sandbox read-only` — Codex can look at everything but touch nothing
-- `--output` — writes report to a file so Opus can read it later
-- Do NOT block. Do NOT wait. Move to the next task.
+- Adversarial review is read-only by design — Codex analyzes but touches nothing
+- `--output` — writes structured JSON report for Opus to parse later
+- `--background` — returns job ID immediately, does NOT block
+- Move to the next task. Do NOT wait.
 - If Codex errors or times out, the report file just won't exist. That's fine.
 
 **When Opus reviews the report (at next natural pause):**
-1. Read the Codex audit file
-2. For each finding, apply judgment:
-   - **Real issue Claude missed** → fix it, note "caught by Codex background audit"
-   - **False positive** → dismiss with one-line reasoning
-   - **Disagreement with Claude's approach** → flag for user if significant
+1. Read the Codex audit JSON file
+2. Parse findings and triage by severity + confidence:
+   - `critical`/`high` with confidence >= 0.7 → fix it, note "caught by Codex audit"
+   - `medium` with confidence >= 0.8 → fix if quick
+   - `low` or confidence < 0.5 → dismiss with one-line reasoning
+   - If JSON doesn't parse, triage the raw text manually
 3. Delete the audit file after processing
-4. If Codex found nothing or the file doesn't exist → move on silently
+4. If verdict is `approve` or the file doesn't exist → move on silently
 
 **When to check for pending reports:**
 - Between tasks (if there's a natural pause)

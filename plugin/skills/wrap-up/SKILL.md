@@ -62,9 +62,9 @@ changes (nothing staged, unstaged, or untracked source files), skip this phase s
 
 **If uncommitted changes exist:**
 
-1. Invoke Codex review (read-only, background):
+1. Invoke Codex adversarial review (read-only, structured JSON output):
    ```bash
-   bash ~/.claude/hooks/codex-delegate.sh review "" --sandbox read-only --search --timeout 120 --cwd "$(pwd)"
+   bash ~/.claude/hooks/codex-delegate.sh adversarial-review "" --search --timeout 180 --cwd "$(pwd)"
    ```
 
 2. For higher-risk work, run a dedicated Codex verifier flow after the review:
@@ -77,16 +77,18 @@ changes (nothing staged, unstaged, or untracked source files), skip this phase s
      just codex_verify "Review the task outcome, current diff, and test evidence before wrap-up."
      ```
 
-3. **Triage each finding independently:**
-   - **Real issue** (bug, security flaw, logic error, missing edge case) → Fix now, before committing.
-   - **False positive** (Codex misread the code, flagged something intentional) → Dismiss with one-line reasoning.
-   - **Style/preference** (not a bug, just a different approach) → Dismiss.
+3. **Triage each finding using structured JSON output:**
+   Parse the JSON response and apply these rules by severity + confidence:
+   - `critical` or `high` with confidence >= 0.7 → Fix now, before committing.
+   - `medium` with confidence >= 0.8 → Fix if quick (under 2 minutes).
+   - `low` or confidence < 0.5 → Dismiss with one-line reasoning.
+   - If the JSON doesn't parse (raw text fallback), triage manually as before.
 
 4. **Log the triage for the final report:**
    ```
-   Codex Review: X findings — Y fixed, Z dismissed
+   Codex Review: verdict={approve|needs-attention}, X findings — Y fixed, Z dismissed
    - Fixed: {brief description of each fix}
-   - Dismissed: {brief reason for each dismissal}
+   - Dismissed: {severity}/{confidence} — {brief reason}
    ```
 
 5. If Codex timed out or errored: Note it and proceed. The other phases

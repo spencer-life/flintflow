@@ -20,15 +20,21 @@ as an independent auditor before using it as an implementer.
 |------------|-------------|---------|
 | `exec` | General task delegation | `/codex fix the nginx 502 error` |
 | `review` | Code review (second opinion) | `/codex review` |
+| `adversarial-review` | Structured adversarial review (JSON with severity/confidence) | `/codex adversarial-review` |
 | `research` | Web search / current events | `/codex research latest Node LTS` |
 | `compare` | Get Codex's independent take, then synthesize | `/codex compare is this schema normalized?` |
+| `status` | Check background Codex job status | `/codex status` |
+| `cancel` | Cancel a running background job | `/codex cancel <id>` |
+| `result` | Get output from a completed background job | `/codex result <id>` |
 
 ## Steps
 
 1. **Parse the user's intent** — determine which subcommand fits:
    - Web/current events → `research`
-   - Code review → `review`
+   - Code review (free text) → `review`
+   - Code review (structured/automated triage) → `adversarial-review`
    - Second opinion → `compare`
+   - Background job management → `status` / `cancel` / `result`
    - Everything else → `exec`
 
 2. **Invoke the wrapper script** via Bash tool:
@@ -37,12 +43,13 @@ as an independent auditor before using it as an implementer.
    ```
 
    Available flags:
-   - `--timeout N` — seconds (default 120)
+   - `--timeout N` — seconds (default 300)
    - `--sandbox MODE` — `read-only` (default) or `workspace-write`
    - `--cwd DIR` — working directory
    - `--output FILE` — custom output path
    - `--worktree` — run in isolated git worktree
    - `--search` — enable live web search (for review, compare, exec)
+   - `--background` — fork to background, return job ID (use `status`/`result` to check)
 
    > Note: `research` always enables web search automatically. Use `--search` on
    > other subcommands when Codex needs web access.
@@ -77,21 +84,72 @@ When a verifier flow finds issues, Claude must triage every finding as:
 - dismissed with reasoning
 - needs user input
 
+## Adversarial Review
+
+The `adversarial-review` subcommand produces structured JSON output using Codex's
+`--output-schema` flag. The output schema:
+
+```json
+{
+  "verdict": "approve" | "needs-attention",
+  "summary": "terse ship/no-ship assessment",
+  "findings": [{
+    "severity": "critical|high|medium|low",
+    "title": "short title",
+    "body": "what can go wrong and why",
+    "file": "path/to/file",
+    "line_start": 42,
+    "line_end": 50,
+    "confidence": 0.0-1.0,
+    "recommendation": "concrete fix"
+  }]
+}
+```
+
+**When to use adversarial-review vs review:**
+- Use `review` for quick, human-readable feedback
+- Use `adversarial-review` for automated workflows (wrap-up, SDD) where
+  findings need programmatic triage by severity and confidence
+
+**Triage rules for adversarial-review findings:**
+- `critical` or `high` with confidence >= 0.7 → fix now
+- `medium` with confidence >= 0.8 → fix if quick
+- `low` or confidence < 0.5 → dismiss with reasoning
+- Always present the full JSON to the user alongside the triage
+
+## Background Jobs
+
+Any subcommand can run in background with `--background`:
+
+```bash
+bash ~/.claude/hooks/codex-delegate.sh exec "fix the test" --background
+# Returns: job ID
+
+bash ~/.claude/hooks/codex-delegate.sh status
+# Lists all jobs with status
+
+bash ~/.claude/hooks/codex-delegate.sh result <job-id>
+# Returns output from completed job
+
+bash ~/.claude/hooks/codex-delegate.sh cancel <job-id>
+# Kills a running job
+```
+
+Job metadata stored at `~/.codex/jobs/<id>.json`.
+
 ## Auto-Invocation (by subagent-driven-development)
 
 When subagent-driven-development completes all review stages for a task
 (spec → code quality → data verification), it auto-invokes Codex as a final
 cross-model check before moving to the next task.
 
-**Auto-invocation uses `compare` mode with `--search`** (web search enabled)
-and a prompt constructed from:
-- The task description
-- The git diff of changes made
-- Verification results (if data task)
+**Auto-invocation uses `adversarial-review` with `--search`** for structured
+triage at phase boundaries. Falls back to `compare` mode for user-triggered
+second opinions.
 
-**Also auto-invoked by `/wrap-up` Phase 2** — runs `review --uncommitted --search`
-on all session changes before committing. Claude triages findings: real issues
-get fixed, false positives get dismissed with reasoning.
+**Also auto-invoked by `/wrap-up` Phase 2** — runs `adversarial-review --search`
+on all session changes before committing. Claude triages findings using the
+structured JSON: critical/high → fix, medium → fix if quick, low → dismiss.
 
 The prompt template for auto-invocation:
 ```
@@ -147,8 +205,14 @@ Users can also invoke via justfile:
 - `just codex_write "prompt"` — exec with write access
 - `just codex_review` — review uncommitted changes
 - `just codex_review_branch main` — review against branch
+- `just codex_adversarial_review` — structured adversarial review (JSON)
+- `just codex_adversarial_review_branch main` — adversarial review against branch
 - `just codex_research "topic"` — web research
 - `just codex_compare "question"` — second opinion
+- `just codex_bg "prompt"` — run task in background
+- `just codex_jobs` — list background jobs
+- `just codex_result <id>` — get background job output
+- `just codex_cancel <id>` — cancel a background job
 - `just codex_verify "task summary"` — run the `claude-work-verifier` flow
 - `just codex_verify_artifacts "artifact summary"` — run the `artifact-verifier` flow
 - `just codex_audit_handoff .claude/handoff.md` — run the `handoff-auditor` flow
