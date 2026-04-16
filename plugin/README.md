@@ -15,17 +15,19 @@ flintflow fixes these by adding ground-truth verification, persistent project st
 
 ## What's Inside
 
-### Skills (7)
+### Skills (9)
 
 | Skill | Description |
 |-------|-------------|
+| `/design` | Idea-to-implementation pipeline: interviews you about the project, designs architecture, generates an implementation plan, and auto-transitions to `/project-init` + SDD. Entry point for new features. |
 | `/project-init` | Interactive scaffold — interviews you about your project, generates `PROJECT_STATE.md`, `VERIFICATION.md`, and verification queries. Works on new and existing projects. |
 | `/data-verify` | Runs ground-truth verification against your database. Compares actual values to human-authored expected values in `VERIFICATION.md`. Refuses to generate its own expected values. |
 | `/handoff` | Enhanced context transfer with data state section. Gathers from conversation, git, and database state. |
 | `/catchup` | Resume from a handoff. Reads `PROJECT_STATE.md` + `VERIFICATION.md`, flags data failures, suggests fixes before proceeding. |
+| `/status` | Project confidence dashboard. Runs 5 signals (tests, lint, data, smoke, git) and outputs a score. Fires automatically mid-session and before wrap-up. |
 | `/wrap-up` | End-of-session checklist: verify data → commit (never push) → update project state → capture learnings → review. |
 | `/codex` | Codex CLI (GPT-5.4) integration. Subcommands: exec, review, adversarial-review, research, compare, status, cancel, result. Structured adversarial review with JSON output, background job management, and cross-model verification at phase boundaries. |
-| `/subagent-driven-development` | Full execution pipeline: Pre-flight → Implement → Spec Review → Code Quality → Data Verify → Codex Auto-Review. All subagent prompts embedded. |
+| `/subagent-driven-development` | Full execution pipeline: Pre-flight → Implement (TDD) → Spec Review → Code Quality → Data Verify → Smoke Test → Codex Auto-Review. TDD, simplification, and verification are built in — no separate skills needed. All subagent prompts embedded. |
 
 ### Agents (3)
 
@@ -95,7 +97,7 @@ Every stage has a clear verdict. Any REJECTED verdict blocks progression. Data v
 cp -r flintflow ~/.claude/plugins/flintflow
 
 # Delete skills that flintflow replaces (if you have them)
-rm -rf ~/.claude/skills/{catchup,handoff,wrap-up,codex,subagent-driven-development}
+rm -rf ~/.claude/skills/{catchup,handoff,wrap-up,codex,subagent-driven-development,design,status,test-driven-development,simplify,verification-before-completion}
 
 # Copy agents to global agents folder
 cp ~/.claude/plugins/flintflow/agents/*.md ~/.claude/agents/
