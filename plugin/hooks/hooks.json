@@ -24,6 +24,29 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/docs-redirect-gate.sh",
+            "if": "Bash(*claude-docs-helper*)",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "docs-reader",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/docs-reader-marker-start.sh",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "SubagentStop": [
@@ -33,6 +56,16 @@
           {
             "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/security-review-marker.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "docs-reader",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/docs-reader-marker-stop.sh",
             "timeout": 5
           }
         ]
