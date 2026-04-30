@@ -13,7 +13,8 @@ Run seven phases in order. Each phase is conversational and inline.
 All phases auto-apply without asking; present a consolidated report at the end.
 
 **HARD RULES:**
-- **NEVER run `git push`.** Spencer pushes manually. Pushing triggers auto-deploy on Railway.
+
+- **NEVER run `git push`.** The user pushes manually. Pushing may trigger auto-deploy.
 - **NEVER run any deploy command.** No deploy scripts, no Railway CLI, nothing.
 - **Commits only.** Stage and commit. That's it.
 
@@ -32,7 +33,7 @@ Run `/status` to get the current project health dashboard.
 4. Include the full dashboard output in the final report
 
 Proceed with remaining phases regardless — wrap-up should always complete,
-but the warning ensures Spencer sees the state clearly before the session ends.
+but the warning ensures the user sees the state clearly before the session ends.
 
 ---
 
@@ -63,16 +64,20 @@ changes (nothing staged, unstaged, or untracked source files), skip this phase s
 **If uncommitted changes exist:**
 
 1. Invoke Codex adversarial review (read-only, structured JSON output):
+
    ```bash
    bash ~/.claude/hooks/codex-delegate.sh adversarial-review "" --search --timeout 180 --cwd "$(pwd)"
    ```
 
 2. For higher-risk work, run a dedicated Codex verifier flow after the review:
    - UI/browser/API/OCR/manual artifact work:
+
      ```bash
      just codex_verify_artifacts "Summarize the end-to-end artifacts that prove this task works."
      ```
+
    - General implementation confidence:
+
      ```bash
      just codex_verify "Review the task outcome, current diff, and test evidence before wrap-up."
      ```
@@ -85,6 +90,7 @@ changes (nothing staged, unstaged, or untracked source files), skip this phase s
    - If the JSON doesn't parse (raw text fallback), triage manually as before.
 
 4. **Log the triage for the final report:**
+
    ```
    Codex Review: verdict={approve|needs-attention}, X findings — Y fixed, Z dismissed
    - Fixed: {brief description of each fix}
@@ -100,10 +106,10 @@ changes (nothing staged, unstaged, or untracked source files), skip this phase s
 
 ## Phase 3: Commit (NEVER PUSH)
 
-4. Run `git status` in each repo directory touched during the session
-5. If uncommitted changes exist, stage relevant files and commit with a descriptive message
-6. **DO NOT PUSH. DO NOT OFFER TO PUSH. DO NOT SUGGEST PUSHING.**
-7. If there are changes in multiple repos, commit each separately
+1. Run `git status` in each repo directory touched during the session
+2. If uncommitted changes exist, stage relevant files and commit with a descriptive message
+3. **DO NOT PUSH. DO NOT OFFER TO PUSH. DO NOT SUGGEST PUSHING.**
+4. If there are changes in multiple repos, commit each separately
 
 **Task cleanup:**
 8. Check the task list for in-progress or stale items
@@ -115,16 +121,16 @@ changes (nothing staged, unstaged, or untracked source files), skip this phase s
 
 **If PROJECT_STATE.md exists:**
 
-10. Update the following sections:
+1. Update the following sections:
     - **Current Status** — reflect what's working/broken now
     - **Data Accuracy Status** — update from Phase 1 results (if applicable)
     - **Active Work Streams** — mark completed items, update in-progress ones
     - **Session Log** — add entry: `- {date} #{N}: {what was done}. {what's next}.`
 
-11. If any architecture decisions were made this session, add them to
+2. If any architecture decisions were made this session, add them to
     Architecture Decisions with date and reasoning.
 
-12. Commit the PROJECT_STATE.md update (separate commit).
+3. Commit the PROJECT_STATE.md update (separate commit).
     **DO NOT PUSH.**
 
 **If PROJECT_STATE.md doesn't exist:** Mention:
@@ -139,6 +145,7 @@ Review what was learned during the session. Decide where each piece of
 knowledge belongs:
 
 **Memory placement guide:**
+
 - **claude-mem MCP** (`save_memory`) — Cross-session insights: debugging
   patterns, API quirks, project behaviors needed in future sessions.
 - **CLAUDE.md** — Permanent rules, conventions, workflow changes
@@ -160,6 +167,7 @@ Analyze the conversation for self-improvement findings. If the session was
 short or routine, say "Nothing to improve" and finish.
 
 **Finding categories:**
+
 - **Skill gap** — Things Claude struggled with or needed multiple attempts
 - **Friction** — Repeated manual steps that should be automatic
 - **Knowledge** — Facts Claude should have known
@@ -167,6 +175,7 @@ short or routine, say "Nothing to improve" and finish.
 - **Data accuracy** — User-confirmed ground-truth values
 
 **Action types:**
+
 - **CLAUDE.md** — Edit rules
 - **Rules** — Create/update `.claude/rules/`
 - **claude-mem** — Save cross-session insight

@@ -41,6 +41,7 @@ and proceed — do not ask for confirmation.
 Pull from three sources:
 
 **1. Conversation context** — scan the full conversation for:
+
 - Tasks completed (with file paths)
 - Current state of work (what's working, broken, in-progress)
 - Unresolved decisions or open questions
@@ -48,6 +49,7 @@ Pull from three sources:
 - Key files touched or referenced
 
 **2. Git state** — run these read-only commands:
+
 ```bash
 git branch --show-current 2>/dev/null
 git status --short 2>/dev/null
@@ -58,6 +60,7 @@ git log --oneline -5 2>/dev/null
 If not in a git repo, skip git commands and note "not a git repo" in the handoff.
 
 **3. Data state** — if the project has a database component:
+
 ```bash
 ls PROJECT_STATE.md VERIFICATION.md verification/ 2>/dev/null
 ```
@@ -150,9 +153,10 @@ No significant state to transfer.
 
 ## Vault Breadcrumb
 
-After writing the handoff file, log a brief entry so Spencer can find it later.
+After writing the handoff file, log a brief entry so the user can find it later.
 
 **Daily note append:**
+
 ```bash
 obsidian vault="Claude Memory" daily:append content="- HH:MM — Handoff: <project> — <one-line summary of where we left off>. Handoff file: .claude/handoff.md"
 ```
@@ -170,6 +174,7 @@ create one.
 ## Post-Write
 
 Confirm to the user:
+
 1. The filename written (e.g., "Wrote `.claude/handoff.md`")
 2. Mention the daily note entry was added
 3. Show the resume command:

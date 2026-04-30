@@ -91,6 +91,7 @@ For each task:
 ```
 
 After all tasks:
+
 1. **Check for pending Codex reports** — review any background audit results
    that came back while you were working. Triage findings (fix real issues,
    dismiss false positives with reasoning).
@@ -115,6 +116,7 @@ all verdicts anyway — subagents just need to do their specific job well.
 | Explore agents | `sonnet` | Research, file reading, summarization |
 
 Set the `model` parameter when dispatching each Agent. Example:
+
 ```
 Agent(model: "haiku", subagent_type: "pre-flight", prompt: "...")
 Agent(model: "sonnet", subagent_type: "code-reviewer", prompt: "...")
@@ -302,6 +304,7 @@ and different blind spots than Claude. That's the point: it catches things that
 multiple rounds of Claude review will consistently miss.
 
 **Dispatch (read-only, background, structured JSON):**
+
 ```bash
 bash ~/.claude/hooks/codex-delegate.sh adversarial-review "" \
   --search --timeout 180 --cwd "$(pwd)" \
@@ -310,6 +313,7 @@ bash ~/.claude/hooks/codex-delegate.sh adversarial-review "" \
 ```
 
 **Key rules:**
+
 - Adversarial review is read-only by design — Codex analyzes but touches nothing
 - `--output` — writes structured JSON report for Opus to parse later
 - `--background` — returns job ID immediately, does NOT block
@@ -317,6 +321,7 @@ bash ~/.claude/hooks/codex-delegate.sh adversarial-review "" \
 - If Codex errors or times out, the report file just won't exist. That's fine.
 
 **When Opus reviews the report (at next natural pause):**
+
 1. Read the Codex audit JSON file
 2. Parse findings and triage by severity + confidence:
    - `critical`/`high` with confidence >= 0.7 → fix it, note "caught by Codex audit"
@@ -327,6 +332,7 @@ bash ~/.claude/hooks/codex-delegate.sh adversarial-review "" \
 4. If verdict is `approve` or the file doesn't exist → move on silently
 
 **When to check for pending reports:**
+
 - Between tasks (if there's a natural pause)
 - After all tasks complete (mandatory — review all outstanding reports)
 - The orchestrator should NOT interrupt a running task to check Codex reports
@@ -336,11 +342,13 @@ bash ~/.claude/hooks/codex-delegate.sh adversarial-review "" \
 ## Workflow Rules
 
 ### Execution order
+
 - Tasks execute sequentially (one at a time)
 - NEVER dispatch parallel implementers (conflicts)
 - NEVER skip review stages
 
 ### Stage order (strict)
+
 0. Approach check (before any code is written — not a review, a pre-coding gate)
 1. Unit test gate (full suite must pass)
 2. Spec + code quality (parallel — both dispatched simultaneously)
@@ -349,6 +357,7 @@ bash ~/.claude/hooks/codex-delegate.sh adversarial-review "" \
 5. Codex background audit (async — fires and moves on, reviewed later)
 
 ### When a reviewer rejects
+
 1. Same implementer subagent fixes issues
 2. Same reviewer re-reviews
 3. Maximum 3 review cycles per stage (implement → review → fix → review → fix → review)
@@ -359,15 +368,18 @@ bash ~/.claude/hooks/codex-delegate.sh adversarial-review "" \
 5. NEVER skip the re-review
 
 ### Git rules
+
 - Implementer commits with descriptive messages
 - **NEVER push. NEVER deploy.**
-- Commits only — Spencer pushes manually
+- Commits only — the user pushes manually
 
 ### When a subagent asks questions
+
 - Answer clearly and completely
 - Don't rush into implementation
 
 ### When a subagent fails
+
 - Dispatch fix subagent with specific instructions
 - Don't fix manually (context pollution)
 

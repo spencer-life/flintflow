@@ -7,7 +7,7 @@ set -euo pipefail
 input=$(cat)
 prompt=$(printf '%s' "$input" | jq -r '.prompt // ""')
 
-# Trigger phrases — what Spencer actually says when he wants to execute a plan.
+# Trigger phrases — what the user actually says when they want to execute a plan.
 if printf '%s' "$prompt" | grep -qiE "(let'?s (build|implement|execute|ship) (it|this)?|(go ahead and )?(build|execute|implement|ship) (it|this)|build it now|execute it now|implement (it|this) now|make it happen|ship it|ok build|ok execute|ok implement|start building|start implementing|run the pipeline)"; then
 	jq -n '{
     hookSpecificOutput: {
