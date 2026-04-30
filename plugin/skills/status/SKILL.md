@@ -9,7 +9,7 @@ description: Show project confidence dashboard with test results, verification s
 # Project Confidence Dashboard
 
 Gather all quality signals for the current project and present a scored dashboard.
-This gives Spencer an instant read on whether the code is ship-ready.
+This gives the user an instant read on whether the code is ship-ready.
 
 ---
 
@@ -65,6 +65,7 @@ cargo test --quiet 2>&1 | tail -5
 ```
 
 **Scoring:**
+
 - 100% pass → 35 points
 - 90-99% pass → 31 points
 - 80-89% pass → 28 points
@@ -85,6 +86,7 @@ git diff --name-only HEAD
 ```
 
 **Scoring:**
+
 - 0 errors, 0 warnings → 15 points
 - 0 errors, some warnings → 10 points
 - Any errors → 0 points
@@ -102,6 +104,7 @@ Only for projects with VERIFICATION.md.
 ```
 
 **Scoring:**
+
 - All tests PASS, no FILL_IN → 20 points
 - All tests PASS, some FILL_IN → 15 points
 - >80% PASS → 12 points
@@ -118,6 +121,7 @@ Only for projects with VERIFICATION.md.
 ```
 
 **Scoring:**
+
 - All checks pass → 20 points
 - Any fail → 0 points
 - No smoke_test.sh → 5 points (benefit of doubt, but flag it)
@@ -132,6 +136,7 @@ git status --porcelain | wc -l
 ```
 
 **Scoring:**
+
 - 0 uncommitted code files → 10 points
 - 1-4 uncommitted → 5 points
 - 5+ uncommitted → 0 points

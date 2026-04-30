@@ -53,7 +53,7 @@ flintflow fixes these by adding ground-truth verification, persistent project st
 
 ## Optional Codex Verifier Layer
 
-flintflow works without any Codex-specific local skills, but Spencer's preferred
+flintflow works without any Codex-specific local skills, but the recommended
 setup is to pair Flint Flow with a small read-only Codex verifier pack:
 
 - `claude-work-verifier` — independent task review with `BLOCK`, `FIX`, or `SHIP`

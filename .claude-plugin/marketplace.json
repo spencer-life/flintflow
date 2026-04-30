@@ -2,8 +2,7 @@
   "name": "flintflow",
   "description": "Structured project workflow with data verification, session lifecycle, and subagent execution",
   "owner": {
-    "name": "Spencer",
-    "email": "admin@b2bsolutions.io"
+    "name": "Flintonian"
   },
   "plugins": [
     {
@@ -12,7 +11,7 @@
       "description": "Structured project workflow with ground-truth data verification, enhanced session lifecycle, and multi-stage subagent execution.",
       "version": "1.0.0",
       "author": {
-        "name": "Spencer"
+        "name": "Flintonian"
       }
     }
   ]

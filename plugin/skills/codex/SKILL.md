@@ -11,7 +11,7 @@ description: This skill invokes Codex CLI (GPT-5.4) for web research, second opi
 Invoke OpenAI Codex CLI (GPT-5.4) as a specialist tool. Claude stays the orchestrator;
 Codex is a power tool for specific strengths.
 
-For Spencer's workflow, default to **read-only verification** first. Use Codex
+For this workflow, default to **read-only verification** first. Use Codex
 as an independent auditor before using it as an implementer.
 
 ## Subcommands
@@ -38,6 +38,7 @@ as an independent auditor before using it as an implementer.
    - Everything else → `exec`
 
 2. **Invoke the wrapper script** via Bash tool:
+
    ```bash
    bash ~/.claude/hooks/codex-delegate.sh <subcommand> "<prompt>" [flags]
    ```
@@ -80,6 +81,7 @@ delegation when the goal is confidence rather than implementation:
 | Check ground-truth verification coverage | `Use the ground-truth-coverage skill...` | `just codex_ground_truth_audit "scope"` |
 
 When a verifier flow finds issues, Claude must triage every finding as:
+
 - fixed now
 - dismissed with reasoning
 - needs user input
@@ -107,11 +109,13 @@ The `adversarial-review` subcommand produces structured JSON output using Codex'
 ```
 
 **When to use adversarial-review vs review:**
+
 - Use `review` for quick, human-readable feedback
 - Use `adversarial-review` for automated workflows (wrap-up, SDD) where
   findings need programmatic triage by severity and confidence
 
 **Triage rules for adversarial-review findings:**
+
 - `critical` or `high` with confidence >= 0.7 → fix now
 - `medium` with confidence >= 0.8 → fix if quick
 - `low` or confidence < 0.5 → dismiss with reasoning
@@ -152,6 +156,7 @@ on all session changes before committing. Claude triages findings using the
 structured JSON: critical/high → fix, medium → fix if quick, low → dismiss.
 
 The prompt template for auto-invocation:
+
 ```
 Review the changes for this task:
 
@@ -171,6 +176,7 @@ Give your independent assessment. Don't just say "looks good."
 ## Cost Awareness
 
 GPT-5.4 is pay-per-use. Don't invoke Codex for tasks Claude handles well:
+
 - Large codebase refactoring (Claude's context window wins)
 - Multi-file changes (Claude's subagents win)
 - MCP-connected services (only Claude has access)
@@ -179,21 +185,25 @@ GPT-5.4 is pay-per-use. Don't invoke Codex for tasks Claude handles well:
 ## Examples
 
 **User:** "search for the latest React 19 features"
+
 ```bash
 bash ~/.claude/hooks/codex-delegate.sh research "latest React 19 features" --timeout 60
 ```
 
 **User:** "codex review my changes"
+
 ```bash
 bash ~/.claude/hooks/codex-delegate.sh review "" --search --cwd "$(pwd)"
 ```
 
 **User:** "get codex's opinion on this architecture"
+
 ```bash
 bash ~/.claude/hooks/codex-delegate.sh compare "Review the architecture — is the service layer properly separated?" --search --cwd "$(pwd)"
 ```
 
 **User:** "codex fix the flaky test in auth.test.ts"
+
 ```bash
 bash ~/.claude/hooks/codex-delegate.sh exec "Fix the flaky test in auth.test.ts" --sandbox workspace-write --cwd "$(pwd)"
 ```
@@ -201,6 +211,7 @@ bash ~/.claude/hooks/codex-delegate.sh exec "Fix the flaky test in auth.test.ts"
 ## Justfile Shortcuts
 
 Users can also invoke via justfile:
+
 - `just codex "prompt"` — quick exec
 - `just codex_write "prompt"` — exec with write access
 - `just codex_review` — review uncommitted changes
