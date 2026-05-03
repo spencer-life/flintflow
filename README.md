@@ -188,28 +188,68 @@ claude plugins update flintflow@flintflow
 
 ## Quick Start
 
-```bash
-# In a new or existing project
-cd ~/dev/my-project
+flintflow flows on rails — most skills auto-fire or get nudged by hooks. You only need to invoke a few manually.
 
-# Initialize the workflow files (auto-detects services, asks strategic questions)
-/project-init
+### The Lifecycle
 
-# Refresh the visual service map any time
-/project-map
-
-# After implementation work, verify data
-/data-verify
-
-# End of session
-/wrap-up
-
-# Transfer context to next session
-/handoff
-
-# Next session: pick up where you left off
-/catchup
 ```
+NEW IDEA                          NEW SESSION (resuming work)
+    ↓                                  ↓
+/design                            /catchup ← reads .claude/handoff.md
+  - interview about the idea
+  - design architecture + plan
+  - auto-suggests ↓                   ↓
+                                                 ↓
+/project-init  (first time on a project)     mid-session work
+  - auto-detects services                         ↓
+  - strategic interview                       /add-logging ← logging-nudge hook fires
+  - writes PROJECT_STATE.md +                    when you edit a deployed-service file
+    PROJECT_MAP.md (+ optional                   lacking error handlers
+    VERIFICATION.md, smoke_test.sh)              ↓
+  - auto-suggests ↓                           /data-verify ← data-verify-nudge fires
+                                                 after DB changes
+/subagent-driven-development                     ↓
+  - INTERNAL pipeline:                       /project-map ← project-map-nudge fires when
+    pre-flight → implement (TDD)                 you edit railway.toml, supabase/config.toml,
+    → spec review → code quality                 netlify.toml, wrangler.*
+    → data-verify → smoke test                   ↓
+    → codex auto-review                       /codex ← MANUAL only. Second opinion,
+                                                 web research, when stuck 2+ attempts.
+                                                 ↓
+                                              /status ← auto-fires mid-session +
+                                                 before /wrap-up
+                                                 ↓
+                                              /handoff ← MANUAL or PreCompact-nudged
+                                                 ↓
+                                              /wrap-up ← wrapup-nudge fires when you
+                                                 have uncommitted code at end of session
+```
+
+### When to use what
+
+| Situation                                            | Skill                          | Trigger     |
+|------------------------------------------------------|--------------------------------|-------------|
+| "I want to build X" / new feature idea               | `/design`                      | Auto        |
+| Brand-new project, never set up                      | `/project-init`                | Auto/Manual |
+| Project's services changed                           | `/project-map`                 | Hook nudge  |
+| Have a plan, want to execute                         | `/subagent-driven-development` | Auto/Manual |
+| Just edited a Discord bot / API / deployed service   | `/add-logging`                 | Hook nudge  |
+| Just touched DB schema or seeded data                | `/data-verify`                 | Hook nudge  |
+| About to clear context, want continuity              | `/handoff`                     | Manual/Hook |
+| Resuming a project after a break                     | `/catchup`                     | Manual      |
+| Mid-session "are we good?"                           | `/status`                      | Auto-fires  |
+| End of session with code changes                     | `/wrap-up`                     | Hook nudge  |
+| Want a second opinion / stuck                        | `/codex`                       | Manual only |
+| Long task list worth persisting                      | `/log-to-gh`                   | Manual      |
+| Lost? Show this diagram in-session                   | `/flintflow:lifecycle`         | Manual      |
+
+### Tip
+
+> **Lost?** Run `/flintflow:lifecycle` in any session. It detects your current project state (handoff file? uncommitted changes? PROJECT_MAP.md missing?) and tells you exactly which skill to invoke next.
+
+### Skills also chain via `AskUserQuestion`
+
+After `/design`, `/project-init`, `/wrap-up`, `/handoff`, and `/data-verify` (on failure) finish, Claude calls `AskUserQuestion` with the natural next-step options. You pick from a list instead of typing the next slash command from memory.
 
 ## Hard Rules
 

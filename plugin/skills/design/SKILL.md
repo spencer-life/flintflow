@@ -25,17 +25,20 @@ Adapt questions based on answers — skip what's already clear, dig deeper on
 ambiguity. Don't dump all questions at once; conversational flow across 2-3 rounds.
 
 ### Round 1 — The What
+
 - What's the idea? (one sentence)
 - What problem does it solve? Who uses it?
 - Does this build on existing code or start fresh?
 
 ### Round 2 — The Constraints
+
 - Tech stack preferences? (or "whatever works best")
 - Existing services to integrate with? (DB, APIs, auth)
 - Timeline/scope: MVP or full feature?
 - Any hard requirements? (must use X, can't use Y)
 
 ### Round 3 — The Shape
+
 - What does "done" look like? (success criteria)
 - Must-haves vs nice-to-haves?
 - Any prior art or inspiration? (links, screenshots, similar tools)
@@ -59,18 +62,21 @@ Pull fresh documentation for every library, framework, and API mentioned in the
 interview. Even ones you "know" — always pull current docs via Context7.
 
 Version check (if building on existing code):
+
 - Check installed versions first: `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`
 - Pull docs for the INSTALLED version, not just "latest"
 - If the installed version is significantly behind current, note it
 - If breaking changes exist between installed and current, flag explicitly
 
 **Agent 2 — Web Search:**
+
 - How do people typically build this?
 - Best libraries/tools for the job in the chosen stack
 - Known pitfalls and gotchas
 - Existing open-source implementations to learn from
 
 **Agent 3 — Codebase Exploration (if building on existing code):**
+
 - Dispatch Explore agent to understand current architecture
 - Find reusable patterns, utilities, abstractions
 - Identify integration points and potential conflicts
@@ -81,11 +87,13 @@ Wait for all three to return, then synthesize results before moving to Phase 3.
 
 **NotebookLM Deep Research** (if complex domain):
 For unfamiliar domains, regulations, or complex integrations:
+
 - Create notebook with relevant sources
 - Run deep research query via `nlm research start`
 - Skip for straightforward technical tasks
 
 **Codex Second Opinion** (if architecture is non-obvious):
+
 - Ask Codex: "Given {requirements}, what's the best architecture for X?"
 - Compare Claude's instinct vs Codex's recommendation
 - Flag disagreements for user decision
@@ -188,7 +196,8 @@ Present the complete plan to the user for approval.
 
 **After user approves:**
 
-### If PROJECT_STATE.md does NOT exist (new project):
+### If PROJECT_STATE.md does NOT exist (new project)
+
 1. Auto-invoke `/project-init` — pass along the design context (stack, DB,
    external services, data sources) so project-init can scaffold accurate docs
    without re-asking questions the user already answered
@@ -196,7 +205,8 @@ Present the complete plan to the user for approval.
    smoke test strategy (if project-init didn't already create one)
 3. Auto-transition to `/subagent-driven-development` with the generated plan
 
-### If PROJECT_STATE.md exists (existing project):
+### If PROJECT_STATE.md exists (existing project)
+
 1. Update PROJECT_STATE.md with the new work stream from this design
 2. If `smoke_test.sh` doesn't exist, scaffold it from the plan
 3. Auto-transition to `/subagent-driven-development` with the generated plan
@@ -216,3 +226,23 @@ Present the complete plan to the user for approval.
 - **Record decisions.** Architecture decisions feed into PROJECT_STATE.md.
 - **Auto-transition is seamless.** User approves plan → project-init (if needed)
   → SDD starts. No manual skill invocation between steps.
+
+---
+
+## Final step: Handoff to execution (use AskUserQuestion)
+
+Once the plan file is written and the user has approved it, do NOT silently
+proceed. Call the `AskUserQuestion` tool to let the user choose how to execute.
+
+Use these exact parameters:
+
+- **question:** `"Plan is ready. How do you want to execute?"`
+- **header:** `"Execute"`
+- **multiSelect:** `false`
+- **options** (3, in this order):
+  1. `label: "Run /subagent-driven-development now (Recommended)"` — `description: "Execute the plan in this session. Best for tightly-scoped work where you want to stay in flow."`
+  2. `label: "Spawn fresh SDD session in a worktree"` — `description: "Isolated execution in a new git worktree. Best for long-running implementation that shouldn't pollute this session's context."`
+  3. `label: "Save plan and stop"` — `description: "Don't execute now. Pick up later via /catchup or by invoking /subagent-driven-development manually."`
+
+Then act on the user's choice — invoke the relevant skill, spawn the worktree,
+or simply confirm the plan is saved and end the turn.
