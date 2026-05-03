@@ -65,10 +65,39 @@ bash "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/cache/flintflow/flintflow/$(ls
 ```
 
 Output JSON includes: project_name, project_root, github, railway, supabase,
-netlify, cloudflare, doppler, discord, purpose_draft, in_service_map.
+netlify, cloudflare, doppler, discord, purpose_draft, in_service_map,
+**sub_projects**.
 
 Hold this JSON in memory for the rest of the flow — it pre-fills both the
 PROJECT_STATE.md "Architecture" section and the PROJECT_MAP.md.
+
+### Multi-project root branch (only when sub_projects is non-empty)
+
+If `sub_projects` is non-null and has 2+ entries, you're at a monorepo root
+hosting multiple deployable units (e.g. `agencies/execute-financial`,
+`bots/leaderboard`). The flow branches here:
+
+1. **Tell the user what was found:**
+   > "Detected this is a multi-project root: {N} sub-projects ({list paths}).
+   > Each sub-project should have its own PROJECT_STATE.md / PROJECT_MAP.md /
+   > VERIFICATION.md scoped to ITS services."
+
+2. **Ask via `AskUserQuestion`:**
+   - **question:** `"How do you want to scaffold this multi-project root?"`
+   - **header:** `"Scaffold mode"`
+   - **multiSelect:** `false`
+   - **options** (3):
+     1. `label: "Orchestrator only (Recommended)"` — `description: "Generate root-level PROJECT_STATE.md + an orchestrator PROJECT_MAP.md that indexes the sub-projects. Then cd into each sub-project later to scaffold individually."`
+     2. `label: "Orchestrator + recurse into each sub-project"` — `description: "Run the full /project-init interview at the root AND inside each sub-project. Long flow ({N+1} interviews). Best when you can scaffold everything in one sitting."`
+     3. `label: "Skip — I'll scaffold sub-projects manually"` — `description: "Just exit. cd into each sub-project and run /project-init there individually."`
+
+3. **Act on the choice:**
+   - **Orchestrator only:** generate root PROJECT_STATE.md (focused on shared/orchestrator concerns — what code is shared, deploy strategy, sub-project list) and a root PROJECT_MAP.md that's an INDEX (Mermaid showing root → each sub-project as a node, with `see <path>/PROJECT_MAP.md` notes). Skip the per-service inventory at root level — that lives in each sub-project's map.
+   - **Recurse:** do the orchestrator scaffold first, then for each sub-project: `cd <path>`, run the standard /project-init flow, `cd ..` back. Track which sub-projects completed in case the user interrupts.
+   - **Skip:** print the sub-project list with `cd` commands the user can copy-paste, then end.
+
+If `sub_projects` is null or empty: skip this entire branch and proceed to
+Step 3 normally (single-project flow).
 
 ---
 

@@ -142,6 +142,45 @@ if [[ -f "$SERVICE_MAP" ]] && [[ -n "$GITHUB_REPO" ]]; then
 	fi
 fi
 
+# --- Sub-project detection (multi-agency / monorepo) ---
+# Scan known monorepo subdir names for child folders that look like their own
+# deployable units. Strong signals: own package.json (different name), own deploy
+# config (railway.toml, netlify.toml, wrangler.*, supabase/config.toml), own
+# Dockerfile. A subdir flagged if at least one strong signal hits.
+# Output is a colon-separated list; python below splits + structures it.
+SUB_PROJECTS=""
+SUB_PROJECT_DIRS=("apps" "packages" "services" "agencies" "bots" "sites")
+for parent in "${SUB_PROJECT_DIRS[@]}"; do
+	[[ -d "$PROJECT_ROOT/$parent" ]] || continue
+	for sub in "$PROJECT_ROOT/$parent"/*/; do
+		[[ -d "$sub" ]] || continue
+		sub_name=$(basename "$sub")
+		# Skip hidden / dotfile directories
+		[[ "$sub_name" == .* ]] && continue
+		# Strong-signal check
+		strong=0
+		if [[ -f "$sub/package.json" ]]; then
+			# Different name from root package.json (or root has none) → strong
+			if [[ -f "$PROJECT_ROOT/package.json" ]] && command -v jq >/dev/null 2>&1; then
+				root_name=$(jq -r '.name // ""' "$PROJECT_ROOT/package.json" 2>/dev/null || echo "")
+				sub_pkg_name=$(jq -r '.name // ""' "$sub/package.json" 2>/dev/null || echo "")
+				[[ -n "$sub_pkg_name" && "$sub_pkg_name" != "$root_name" ]] && strong=1
+			else
+				strong=1
+			fi
+		fi
+		[[ -f "$sub/railway.toml" || -f "$sub/railway.json" ]] && strong=1
+		[[ -f "$sub/netlify.toml" ]] && strong=1
+		[[ -f "$sub/wrangler.toml" || -f "$sub/wrangler.json" || -f "$sub/wrangler.jsonc" ]] && strong=1
+		[[ -f "$sub/supabase/config.toml" ]] && strong=1
+		[[ -f "$sub/Dockerfile" ]] && strong=1
+		if [[ $strong -eq 1 ]]; then
+			# Format: parent/sub_name (so caller knows the relative path)
+			SUB_PROJECTS="${SUB_PROJECTS}${SUB_PROJECTS:+:}${parent}/${sub_name}"
+		fi
+	done
+done
+
 # --- Emit JSON via python (cleaner than building bash JSON) ---
 python3 <<PYEOF
 import json
@@ -255,6 +294,16 @@ if "$HAS_DISCORD" == "true":
         "dashboard": f"https://discord.com/developers/applications/{sm_discord_bot_id}" if sm_discord_bot_id else "https://discord.com/developers/applications",
     }
 
+# Sub-projects: bash emits "parent/name:parent/name:..." or empty.
+# Convert to a list of {"path": "agencies/execute-financial", "name": "execute-financial"}.
+sub_projects_raw = "$SUB_PROJECTS"
+sub_projects = None
+if sub_projects_raw:
+    sub_projects = [
+        {"path": item, "name": item.split("/", 1)[1] if "/" in item else item}
+        for item in sub_projects_raw.split(":") if item
+    ]
+
 out = {
     "project_name": project_name,
     "project_root": project_root,
@@ -267,6 +316,7 @@ out = {
     "discord": discord,
     "purpose_draft": purpose_draft,
     "in_service_map": in_service_map,
+    "sub_projects": sub_projects,
 }
 
 print(json.dumps(out, indent=2))
