@@ -1,47 +1,74 @@
 # flintflow
 
-A Claude Code plugin for structured project workflows with ground-truth data verification, session lifecycle management, and multi-stage subagent execution.
+A Claude Code plugin for structured project workflows: visual service mapping,
+ground-truth data verification, session lifecycle management, and multi-stage
+subagent execution.
 
 ## The Problem
 
-Claude Code is great at writing code, but complex projects — especially database-backed ones — have recurring pain points:
+Claude Code is great at writing code, but complex projects — especially
+database-backed ones — have recurring pain points:
 
-- **Claude grades its own homework.** Tests pass, but the data is wrong because Claude wrote both the code and the tests.
-- **Context evaporates between sessions.** Handoff files help, but there's no persistent project memory across many sessions.
-- **"Done" doesn't mean correct.** Claude declares victory after tests pass, but nobody verified the actual database values.
-- **Parallel sessions step on each other.** Two sessions modifying the same tables with no awareness of each other's intent.
+- **Claude grades its own homework.** Tests pass, but the data is wrong because
+  Claude wrote both the code and the tests.
+- **Context evaporates between sessions.** Handoff files help, but there's no
+  persistent project memory across many sessions.
+- **"Done" doesn't mean correct.** Claude declares victory after tests pass,
+  but nobody verified the actual database values.
+- **No at-a-glance project map.** Coming back to a project, there's no single
+  view of what services it touches (Supabase ref, Railway project, Netlify
+  site, Doppler scope) without clicking through configs.
+- **Project setup feels like data entry.** Old-school scaffolds leave
+  `FILL_IN` placeholders the user has to open and edit by hand.
 
-flintflow fixes these by adding ground-truth verification, persistent project state, and a structured execution pipeline.
+flintflow fixes these with auto-detected visual service maps, zero-placeholder
+project scaffolding, ground-truth verification, persistent project state, and
+a structured execution pipeline.
 
 ## What's Inside
 
-### Skills (9)
+### Skills (12)
 
 | Skill | Description |
 |-------|-------------|
-| `/design` | Idea-to-implementation pipeline: interviews you about the project, designs architecture, generates an implementation plan, and auto-transitions to `/project-init` + SDD. Entry point for new features. |
-| `/project-init` | Interactive scaffold — interviews you about your project, generates `PROJECT_STATE.md`, `VERIFICATION.md`, and verification queries. Works on new and existing projects. |
+| `/design` | Idea-to-implementation pipeline. Interviews you about the project, designs architecture, generates a plan, and auto-transitions to `/project-init` + SDD. Entry point for new features. |
+| `/project-init` | Strategic interview that auto-detects services first, then asks about purpose, status, and direction. Generates `PROJECT_STATE.md` (always), `PROJECT_MAP.md` (always), `VERIFICATION.md` + queries (only if data-backed), `smoke_test.sh` (only if deployed). **Zero placeholders** — every value comes from auto-detection or a conversational answer. |
+| `/project-map` | Generate or refresh a visual `PROJECT_MAP.md` at the project root: Mermaid service flowchart + inventory table with dashboard URLs. Auto-detects from project files (package.json, railway.toml, supabase/, .env.example, Python deps) and cross-references the user's global service-map memory for canonical IDs. Idempotent re-runs preserve hand-edited content. |
 | `/data-verify` | Runs ground-truth verification against your database. Compares actual values to human-authored expected values in `VERIFICATION.md`. Refuses to generate its own expected values. |
-| `/handoff` | Enhanced context transfer with data state section. Gathers from conversation, git, and database state. |
+| `/handoff` | Enhanced context transfer with data-state section. Gathers from conversation, git, and database state. |
 | `/catchup` | Resume from a handoff. Reads `PROJECT_STATE.md` + `VERIFICATION.md`, flags data failures, suggests fixes before proceeding. |
 | `/status` | Project confidence dashboard. Runs 5 signals (tests, lint, data, smoke, git) and outputs a score. Fires automatically mid-session and before wrap-up. |
 | `/wrap-up` | End-of-session checklist: verify data → commit (never push) → update project state → capture learnings → review. |
 | `/codex` | Codex CLI (GPT-5.4) integration. Subcommands: exec, review, adversarial-review, research, compare, status, cancel, result. Structured adversarial review with JSON output, background job management, and cross-model verification at phase boundaries. |
-| `/subagent-driven-development` | Full execution pipeline: Pre-flight → Implement (TDD) → Spec Review → Code Quality → Data Verify → Smoke Test → Codex Auto-Review. TDD, simplification, and verification are built in — no separate skills needed. All subagent prompts embedded. |
+| `/subagent-driven-development` | Full execution pipeline: Pre-flight → Implement (TDD) → Spec Review → Code Quality → Data Verify → Smoke Test → Codex Auto-Review. TDD, simplification, and verification are built in. All subagent prompts embedded. |
+| `/add-logging` | Audit a deployed service for error-logging gaps and add missing handlers. Covers Node/Discord/Express/Next.js/Supabase Edge/Python. Flags `process.on('unhandledRejection')`, `client.on('error')`, missing try/catch wraps. |
+| `/log-to-gh` | Persist the current TaskList (or a plan summary) to a GitHub issue in the current repo. Uses the `gh-issue-logger` haiku subagent for the actual creation. |
 
-### Agents (3)
+### Agents (5)
 
 | Agent | Description |
 |-------|-------------|
 | `pre-flight` | Checks scope conflicts, missing context, data safety, and dependencies before implementation starts. |
 | `data-verifier` | Verifies database values against `VERIFICATION.md` ground-truth. Verdicts: APPROVED, REJECTED, INCONCLUSIVE, BLOCKED. |
 | `integration-reviewer` | Reviews branch merges after parallel sessions. Checks git conflicts, logic conflicts, data conflicts, and schema conflicts. |
+| `docs-reader` | Reads Claude Code docs via `claude-docs-helper.sh` in isolated context, returns only the sections relevant to the caller's question. Keeps verbose raw docs out of main context. |
+| `gh-issue-logger` | Creates a well-formatted GitHub issue from a task list and returns the URL. Narrow, deterministic — never edits files. |
 
 ### Hooks
 
-| Hook | Event | Description |
-|------|-------|-------------|
-| `session-start.sh` | SessionStart | Git snapshot (branch, staged/unstaged counts, recent commits, stash) + handoff file detection with staleness warnings. |
+Hooks live in `plugin/hooks/` and fire on PostToolUse, PreToolUse,
+SubagentStart, SubagentStop, and UserPromptSubmit events. They handle:
+
+| Hook | Purpose |
+|---|---|
+| `data-verify-nudge.sh` | Reminds to run `/data-verify` after DB changes |
+| `docs-reader-marker-start.sh` / `-stop.sh` | Wraps docs-reader subagent invocations to keep verbose docs out of main context |
+| `docs-redirect-gate.sh` | Routes Claude Code questions to local docs mirror instead of guessing |
+| `logging-nudge.sh` | Nudges `/add-logging` when editing deployed-service files lacking error handlers |
+| `pr-security-gate.sh` | Pre-commit security scan when PR is being prepared |
+| `sbdd-nudge.sh` | Suggests `/subagent-driven-development` for multi-step implementation tasks |
+| `security-review-marker.sh` | Marks security-sensitive subagent runs |
+| `wrapup-nudge.sh` | Suggests `/wrap-up` at end of work session with uncommitted code |
 
 ### Scripts
 
@@ -54,7 +81,7 @@ flintflow fixes these by adding ground-truth verification, persistent project st
 ## Optional Codex Verifier Layer
 
 flintflow works without any Codex-specific local skills, but the recommended
-setup is to pair Flint Flow with a small read-only Codex verifier pack:
+setup is to pair flintflow with a small read-only Codex verifier pack:
 
 - `claude-work-verifier` — independent task review with `BLOCK`, `FIX`, or `SHIP`
 - `artifact-verifier` — evidence-first verification for UI/API/data/browser work
@@ -66,9 +93,44 @@ These are invoked through the same wrapper and `just` shortcuts used by the
 
 ## Key Concepts
 
+### Zero-placeholder principle
+
+`/project-init` never leaves the user to open a file and fill in slots. Every
+value in every generated file (`PROJECT_STATE.md`, `PROJECT_MAP.md`,
+`VERIFICATION.md`, `smoke_test.sh`) comes from either:
+
+1. **Auto-detection** (git remote, package.json, railway.toml, supabase/, env
+   examples, dependency files), OR
+2. **A conversational answer** captured during the strategic interview.
+
+If a value isn't known yet (e.g., a verification category with no ground-truth
+values), that section is OMITTED — never stubbed with `FILL_IN`.
+
+### PROJECT_MAP.md
+
+A visual at-a-glance map of every external service the project touches.
+Mermaid flowchart (renders inline in Claude chat AND VS Code markdown
+preview) plus an inventory table with dashboard URLs. Generated by
+`/project-init` and refreshable any time via `/project-map`.
+
+```mermaid
+flowchart LR
+  GH[GitHub<br/>spencer-life/charm]
+  RW[Railway<br/>charm]
+  SB[Supabase<br/>xyz789]
+  DC[Discord Bot]
+  DOP[(Doppler<br/>charm/dev_personal)]
+
+  GH -->|deploys to| RW
+  RW -->|reads/writes| SB
+  RW -->|posts to| DC
+  RW -.secrets.-> DOP
+```
+
 ### VERIFICATION.md
 
-A human-authored file of expected values. Claude and Codex are both forbidden from generating these — only humans establish ground truth. Example:
+A human-authored file of expected values. Claude and Codex are both forbidden
+from generating these — only humans establish ground truth.
 
 ```markdown
 ## Premium Rates
@@ -78,9 +140,14 @@ A human-authored file of expected values. Claude and Codex are both forbidden fr
 | ANICO | FE | 55 | - | NS | $32.50 |
 ```
 
+In the redesigned `/project-init`, these values are captured CONVERSATIONALLY
+during the interview — never as placeholders the user must fill in later.
+
 ### PROJECT_STATE.md
 
-Persistent project memory that survives across sessions. Tracks architecture decisions, data accuracy scores, active work streams, parallel session boundaries, and known issues.
+Persistent project memory that survives across sessions. Tracks architecture
+decisions, data accuracy scores, active work streams, parallel session
+boundaries, and known issues.
 
 ### The Pipeline
 
@@ -88,43 +155,48 @@ Persistent project memory that survives across sessions. Tracks architecture dec
 Pre-flight → Implement → Spec Review → Code Quality → Data Verify → Codex Review
 ```
 
-Every stage has a clear verdict. Any REJECTED verdict blocks progression. Data verification uses `VERIFICATION.md` — not AI-generated expectations.
+Every stage has a clear verdict. Any REJECTED verdict blocks progression. Data
+verification uses `VERIFICATION.md` — not AI-generated expectations.
 
 ## Installation
 
+flintflow ships as a Claude Code plugin via the marketplace mechanism.
+
 ```bash
-# Copy to plugins directory
-cp -r flintflow ~/.claude/plugins/flintflow
+# Add the marketplace (one time)
+claude plugins marketplace add spencer-life/flintflow
 
-# Delete skills that flintflow replaces (if you have them)
-rm -rf ~/.claude/skills/{catchup,handoff,wrap-up,codex,subagent-driven-development,design,status,test-driven-development,simplify,verification-before-completion}
+# Install the plugin
+claude plugins install flintflow@flintflow
+```
 
-# Copy agents to global agents folder
-cp ~/.claude/plugins/flintflow/agents/*.md ~/.claude/agents/
+Restart Claude Code. The skills, agents, and hooks are auto-loaded.
 
-# Copy codex-delegate.sh to hooks directory
-cp ~/.claude/plugins/flintflow/scripts/codex-delegate.sh ~/.claude/hooks/codex-delegate.sh
-chmod +x ~/.claude/hooks/codex-delegate.sh
+To update later:
 
-# Add alias so flintflow loads every session
-echo 'alias cc="claude --plugin-dir ~/.claude/plugins/flintflow"' >> ~/.zshrc
-source ~/.zshrc
+```bash
+claude plugins update flintflow@flintflow
 ```
 
 ### Requirements
 
 - Claude Code CLI
+- `bash`, `jq`, `python3` (for the auto-detection helper)
+- `git` (for repo detection)
 - Codex CLI (optional — for cross-model verification)
-- A database connection (for data verification skills)
+- A database connection (only if you use `/data-verify`)
 
 ## Quick Start
 
 ```bash
-# Start Claude Code with flintflow
-cc
+# In a new or existing project
+cd ~/dev/my-project
 
-# Initialize a new or existing project
+# Initialize the workflow files (auto-detects services, asks strategic questions)
 /project-init
+
+# Refresh the visual service map any time
+/project-map
 
 # After implementation work, verify data
 /data-verify
@@ -144,7 +216,8 @@ cc
 - **Never push.** Wrap-up commits only. You push when you're ready.
 - **Never generate expected values.** Only humans author `VERIFICATION.md`.
 - **Never approve failing tests.** Any REJECTED verdict blocks the pipeline.
-- **Database disagrees with VERIFICATION.md?** The database is wrong.
+- **Database disagrees with `VERIFICATION.md`?** The database is wrong.
+- **Never leave placeholders.** If a value isn't known, omit the section.
 
 ## License
 
