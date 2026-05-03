@@ -1,6 +1,29 @@
 {
-  "description": "FlintFlow lifecycle hooks — SessionStart handled by user's global session-init.sh. These enforce auto-invocation rules that were previously prose in workflow-lifecycle.md.",
+  "description": "FlintFlow lifecycle hooks. SessionStart fires a project-aware lifecycle-orientation hook (silent no-op outside flintflow projects). All other events enforce auto-invocation rules that were previously prose in workflow-lifecycle.md.",
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/lifecycle-orientation.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/handoff-context-nudge.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Bash",
@@ -32,6 +55,16 @@
             "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/docs-redirect-gate.sh",
             "if": "Bash(*claude-docs-helper*)",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/project-map-nudge.sh",
             "timeout": 5
           }
         ]
@@ -87,6 +120,11 @@
           {
             "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/logging-nudge.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/handoff-context-nudge.sh",
             "timeout": 5
           }
         ]

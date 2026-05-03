@@ -230,3 +230,22 @@ Push when you're ready.
 ### Improvements
 {List or "Nothing to improve"}
 ```
+
+---
+
+## Final step: Handoff to session end (use AskUserQuestion)
+
+After the wrap-up summary is printed, do NOT just end the turn. Call the
+`AskUserQuestion` tool so the user can decide what happens next.
+
+Use these exact parameters:
+
+- **question:** `"Session wrapped. Anything before you stop?"`
+- **header:** `"Before stopping"`
+- **multiSelect:** `false`
+- **options** (3, in this order):
+  1. `label: "Write a /handoff (Recommended)"` — `description: "Save a context-transfer doc so next session can /catchup cleanly. Takes 30 seconds."`
+  2. `label: "Just stop"` — `description: "Nothing left to capture. Wrap-up summary is enough on its own."`
+  3. `label: "Continue working"` — `description: "Wrap-up was premature — there's more to do this session."`
+
+Act on the choice — invoke /handoff, end the turn, or roll back into work.

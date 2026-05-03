@@ -20,9 +20,11 @@ review), but checking if the result is actually correct (data review).
 ## When This Runs
 
 ### Manual invocation
+
 User says `/data-verify` or "check the data" → run full verification suite.
 
 ### As a subagent-driven-dev review stage
+
 When the subagent-driven-development skill is executing a task that modifies
 database content (INSERT, UPDATE, DELETE, migrations, seed scripts, OCR-to-DB
 pipelines), this skill runs as a third review stage:
@@ -32,6 +34,7 @@ Implementer → Spec Reviewer → Code Quality Reviewer → Data Verifier (this 
 ```
 
 ### After any database migration or bulk data operation
+
 If Claude just ran a migration, loaded data from OCR, or did bulk updates,
 run this before claiming completion.
 
@@ -69,12 +72,14 @@ Warn the user:
 Look for connection details in this order:
 
 1. **Environment variables:**
+
    ```bash
    # Check for common DB env vars (don't print the actual values)
    env | grep -i "database_url\|db_url\|postgres\|supabase\|mongo\|sqlite" | sed 's/=.*/=***/' 2>/dev/null
    ```
 
 2. **Project config files:**
+
    ```bash
    # Check common locations
    ls .env .env.local .env.production docker-compose.yml railway.toml supabase/.env 2>/dev/null
@@ -98,6 +103,7 @@ Look for connection details in this order:
 ### For SQL databases (Postgres, SQLite, MySQL)
 
 If `verification/check_all.sql` exists:
+
 ```bash
 # Postgres via DATABASE_URL
 psql "$DATABASE_URL" -f verification/check_all.sql 2>&1
@@ -121,6 +127,7 @@ python verification/check_all.py 2>&1
 ### For API/bot response verification
 
 If VERIFICATION.md includes Bot/API Response Checks, run those too:
+
 ```bash
 # Construct curl commands or bot queries from the table
 # Show actual response vs. expected
@@ -164,6 +171,7 @@ Database: {connection method}
 Based on results, give a clear verdict:
 
 ### All pass
+
 ```
 ✅ ALL VERIFICATION TESTS PASS
 
@@ -175,6 +183,7 @@ comprehensive verification values in VERIFICATION.md.
 ```
 
 ### Some fail
+
 ```
 ❌ {N} VERIFICATION TESTS FAILING
 
@@ -192,6 +201,7 @@ Suggested next steps:
 ```
 
 ### Cannot run (no connection, no verification file)
+
 ```
 ⚠️ VERIFICATION COULD NOT RUN
 
@@ -215,6 +225,7 @@ Format: `YYYY-MM-DD HH:MM | X/Y passing | VERDICT | brief note`
 
 This file is append-only. Never truncate or edit it. It shows trends across sessions.
 If the file doesn't exist yet, create it with a header line first:
+
 ```bash
 echo "# Verification History — $(basename $(pwd))" > verification/history.log
 ```
@@ -238,11 +249,13 @@ If PROJECT_STATE.md exists, update the Data Accuracy Status table:
 ## Integration with Other Skills
 
 ### verification-before-completion
+
 When that skill demands "evidence before claims" for a database-modifying task,
 the evidence MUST include `/data-verify` results. Code tests passing alone is
 not sufficient for database work.
 
 ### subagent-driven-development
+
 The data verifier subagent prompt:
 
 ```
@@ -258,9 +271,11 @@ Rules:
 ```
 
 ### wrap-up
+
 Before session wrap-up, run `/data-verify` and include results in the session log.
 
 ### codex
+
 When using `/codex review` for database changes, include the data-verify results
 in the prompt so Codex can see actual data state, not just code diffs.
 
@@ -269,30 +284,38 @@ in the prompt so Codex can see actual data state, not just code diffs.
 ## Scope Options
 
 ### Full run (default)
+
 ```
 /data-verify
 ```
+
 Runs all tests in VERIFICATION.md.
 
 ### Category-specific
+
 ```
 /data-verify IUL
 /data-verify "Final Expense"
 ```
+
 Runs only tests in the specified category section.
 
 ### Single test
+
 ```
 /data-verify #3
 ```
+
 Runs only test #3 from VERIFICATION.md.
 
 ### Before/after comparison
+
 ```
 /data-verify --before
 {... make changes ...}
 /data-verify --after
 ```
+
 Captures state before changes, then compares after. Shows what changed.
 
 ---
@@ -309,3 +332,25 @@ Captures state before changes, then compares after. Shows what changed.
 - **Never modify VERIFICATION.md to match the database.** If the database
   disagrees with VERIFICATION.md, the database is wrong (unless the human
   explicitly says otherwise).
+
+---
+
+## Final step: Handle failures (use AskUserQuestion — only when failures > 0)
+
+After printing the verification summary, count failed tests. **Only call
+`AskUserQuestion` if at least one test failed.** On a clean pass, stay silent
+and end the turn — no friction on the happy path.
+
+When N > 0 tests failed, use these exact parameters:
+
+- **question:** `"{N} test(s) failed against ground truth. How do you want to handle it?"` (substitute the actual N)
+- **header:** `"Failures"`
+- **multiSelect:** `false`
+- **options** (3, in this order):
+  1. `label: "Show failing details (Recommended)"` — `description: "Print each failing query, the expected value from VERIFICATION.md, and the actual value the database returned."`
+  2. `label: "Fix now"` — `description: "Investigate the database, identify the wrong rows, and fix them. The database is wrong — not VERIFICATION.md."`
+  3. `label: "Skip and continue"` — `description: "Accept the failures for this session. Address them later. Do NOT mark the task complete while failures exist."`
+
+Act on the choice. If the user picks "Skip and continue", remind them the task
+remains BLOCKED per the anti-pattern rule above — failures cannot be silently
+accepted as "done."

@@ -180,3 +180,21 @@ Confirm to the user:
 3. Show the resume command:
 
 > To resume: `Read .claude/handoff.md and continue where I left off`
+
+---
+
+## Final step: Handoff confirmation (use AskUserQuestion)
+
+After confirming the handoff was written, call the `AskUserQuestion` tool to let
+the user decide whether this is actually a session end or a checkpoint.
+
+Use these exact parameters:
+
+- **question:** `"Handoff written. End session, or continue?"`
+- **header:** `"Session"`
+- **multiSelect:** `false`
+- **options** (2, in this order):
+  1. `label: "End session"` — `description: "Handoff is saved. Ready for /catchup next time. Stop here."`
+  2. `label: "Continue working"` — `description: "Keep going in this session. The handoff is a checkpoint, not an exit."`
+
+Act on the choice — end the turn cleanly, or continue the prior task.

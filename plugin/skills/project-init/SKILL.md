@@ -387,3 +387,24 @@ Stage, do NOT commit. Tell the user files are staged.
   normally; PROJECT_MAP.md uses detected values without canonical IDs. After
   generation, suggest: "This project isn't in your global service-map memory.
   Worth adding next time you update memory."
+
+---
+
+## Final step: Handoff to next skill (use AskUserQuestion)
+
+After all files are written, staged, and the user has been told what was created
+(Step 5 + 6), do NOT just end the turn. Call the `AskUserQuestion` tool to point
+the user at the natural next move.
+
+Use these exact parameters:
+
+- **question:** `"Project scaffolded. What's next?"`
+- **header:** `"Next step"`
+- **multiSelect:** `false`
+- **options** (3, in this order):
+  1. `label: "Run /design (Recommended)"` — `description: "Plan the first feature for this project. /design auto-transitions to /subagent-driven-development."`
+  2. `label: "Run /subagent-driven-development"` — `description: "Skip planning — execute an existing plan you already have."`
+  3. `label: "Stop here"` — `description: "Just wanted the scaffold. Pick up work later via /catchup or by invoking another skill."`
+
+Act on the user's choice — invoke /design, invoke /subagent-driven-development,
+or end the turn cleanly.
