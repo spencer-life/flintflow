@@ -84,6 +84,49 @@ Skip it if `purpose_draft` from detect.sh is non-empty AND informative.
 
 ## Step 3: Compose the PROJECT_MAP.md content
 
+### Multi-project root branch (only when sub_projects is non-empty)
+
+If detect.sh's JSON has a non-null `sub_projects` array, generate an
+ORCHESTRATOR-style PROJECT_MAP.md instead of the standard service-graph map.
+The orchestrator map indexes the sub-projects rather than listing services
+(services live in each sub-project's own PROJECT_MAP.md).
+
+Orchestrator template:
+
+```markdown
+# Project Map: {project_name} (multi-project root)
+> Auto-mapped {date} · Re-run `/project-map` to refresh
+
+## What this is
+{1–2 sentences from interview or README}
+
+## Sub-projects
+\`\`\`mermaid
+flowchart LR
+  ROOT[{project_name}<br/>orchestrator]
+  {for each sub: SUB_N[{sub.name}<br/>see {sub.path}/PROJECT_MAP.md]}
+  {for each sub: ROOT --> SUB_N}
+\`\`\`
+
+| Sub-project | Path | Map |
+|---|---|---|
+{for each sub: | {sub.name} | `{sub.path}` | `{sub.path}/PROJECT_MAP.md` |}
+
+## Notes
+<!-- Hand-edited section. /project-map preserves anything below this line on re-run. -->
+- For per-sub-project services, `cd <path>` and run `/project-map` there
+- Shared code, shared deploy strategy, and orchestrator-level concerns live in PROJECT_STATE.md at this root
+```
+
+Skip the standard service inventory section — services don't live at the
+orchestrator level. Skip the Local paths "Companion files" line for sub-projects
+(report only the root's companion files).
+
+Then SKIP the rest of Step 3 (don't render the standard service template) and
+go directly to Step 4.
+
+### Single-project branch (default — sub_projects is null or empty)
+
 Read the template at `PROJECT_MAP_TEMPLATE.md` in the skill directory. Replace
 every `{token}` with the corresponding value from the JSON inventory. **If a
 service is null, omit its row from the inventory table AND its node + edges from

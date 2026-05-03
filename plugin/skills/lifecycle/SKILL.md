@@ -27,6 +27,11 @@ Run these checks (silent — capture output, don't echo). If the cwd isn't the
 project root, `cd` to the git root first (`cd "$(git rev-parse --show-toplevel
 2>/dev/null || pwd)"`) so the file checks below resolve correctly.
 
+Also run `bash <plugin>/skills/project-map/detect.sh` and parse its JSON to get
+the `sub_projects` field — the multi-project root indicator. If `sub_projects`
+is non-null and non-empty, you're at a monorepo root with multiple deployable
+sub-projects (e.g. `agencies/execute-financial`, `bots/leaderboard`).
+
 ```bash
 HAS_STATE=$( [ -f PROJECT_STATE.md ] && echo yes || echo no )
 HAS_MAP=$( [ -f PROJECT_MAP.md ] && echo yes || echo no )
@@ -102,6 +107,7 @@ decision tree (top to bottom — first match wins):
 
 | If                                              | Recommend                                         |
 |-------------------------------------------------|---------------------------------------------------|
+| `sub_projects` non-empty AND no `cd` into one yet | **`cd <parent>/<name>`** — multi-project root, work happens inside a sub-project |
 | `HAS_HANDOFF=yes` AND age ≤ 7 days              | **`/catchup`** — handoff from {N} day(s) ago      |
 | `HAS_STATE=no`                                  | **`/project-init`** — no flintflow state yet      |
 | `HAS_STATE=yes` AND `HAS_MAP=no`                | **`/project-map`** — generate the visual         |
@@ -113,8 +119,10 @@ Format the recommendation as a single bolded line:
 
 > **You are here:** [phase summary]. **Next:** [recommended skill] — [one-line why].
 
-Example:
+Examples:
 > **You are here:** flintflow-managed project, handoff from 1d ago, working tree clean. **Next:** `/catchup` — read the handoff and resume.
+
+> **You are here:** multi-project root with 3 sub-projects (`agencies/execute-financial`, `agencies/diligence`, `bots/leaderboard`). Root state covers shared concerns only. **Next:** `cd agencies/<name>` to work on a specific agency, or run `/project-init` here to scaffold the orchestrator-level state.
 
 ---
 
