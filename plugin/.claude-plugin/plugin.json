@@ -1,6 +1,6 @@
 {
   "name": "flintflow",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Structured project workflow with ground-truth data verification, enhanced session lifecycle, and multi-stage subagent execution. Tracks project state across sessions, verifies database accuracy against human-confirmed values, and adds pre-flight checks and data verification stages to development workflows.",
   "author": {
     "name": "Flintonian"
